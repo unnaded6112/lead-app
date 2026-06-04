@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lead Detail</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #0c0c1e;
+      color: #e2e2f0;
+      animation: pageFadeIn 0.5s ease both;
+      min-height: 100vh;
+    }
+
+    .blob {
+      position: fixed; border-radius: 50%;
+      filter: blur(90px); opacity: 0.12; pointer-events: none; z-index: 0;
+    }
+    .blob-1 { width:500px;height:500px;background:#4f46e5;top:-150px;left:-100px;animation:drift1 12s ease-in-out infinite alternate; }
+    .blob-2 { width:400px;height:400px;background:#7c3aed;bottom:-100px;right:-80px;animation:drift2 14s ease-in-out infinite alternate; }
+    @keyframes drift1 { from{transform:translate(0,0)} to{transform:translate(40px,30px)} }
+    @keyframes drift2 { from{transform:translate(0,0)} to{transform:translate(-40px,-30px)} }
+
+    @keyframes pageFadeIn {
+      from { opacity:0; transform:translateY(10px); }
+      to   { opacity:1; transform:translateY(0); }
+    }
+
+    header {
+      background: rgba(15,15,30,0.85);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid rgba(255,255,255,0.07);
+      color: white; padding: 16px 32px;
+      display: flex; align-items: center; gap: 16px;
+      position: sticky; top: 0; z-index: 50;
+    }
+
+    .back-btn {
+      color: rgba(255,255,255,0.6);
+      text-decoration: none;
+      font-size: 0.88rem;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: color 0.2s;
+    }
+    .back-btn:hover { color: white; }
+
+    header h1 { font-size: 1.1rem; font-weight: 600; }
+
+    .container { max-width: 900px; margin: 32px auto; padding: 0 24px; position: relative; z-index: 1; }
+
+    .grid { display: grid; grid-template-columns: 1fr 1.4fr; gap: 24px; }
+    @media (max-width: 680px) { .grid { grid-template-columns: 1fr; } }
+
+    .card {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 12px; padding: 24px;
+      backdrop-filter: blur(8px);
+    }
+
+    .card h2 {
+      font-size: 1rem; color: rgba(255,255,255,0.85);
+      margin-bottom: 18px; padding-bottom: 12px;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+    }
+
+    /* Lead info */
+    .lead-name {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: white;
+      margin-bottom: 6px;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 3px 12px;
+      border-radius: 999px;
+      font-size: 0.78rem;
+      font-weight: 700;
+      margin-bottom: 20px;
+    }
+    .badge-New        { background:#dbeafe;color:#1d4ed8; }
+    .badge-Contacted  { background:#fef9c3;color:#92400e; }
+    .badge-Qualified  { background:#dcfce7;color:#166534; }
+    .badge-Lost       { background:#fee2e2;color:#991b1b; }
+
+    .info-row {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .info-item { display: flex; flex-direction: column; gap: 2px; }
+    .info-label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.6px; color: rgba(255,255,255,0.35); font-weight: 600; }
+    .info-value { font-size: 0.92rem; color: #e2e2f0; }
+
+    .notes-box {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.07);
+      border-radius: 8px; padding: 12px;
+      font-size: 0.88rem; color: rgba(255,255,255,0.6);
+      line-height: 1.6; min-height: 60px;
+    }
+
+    /* Status select on detail page */
+    .status-select {
+      padding: 3px 10px;
+      border-radius: 999px;
+      border: none;
+      font-size: 0.78rem;
+      font-weight: 700;
+      cursor: pointer;
+      outline: none;
+      margin-bottom: 20px;
+    }
+    .status-New        { background: rgba(99,102,241,0.2);  color: #a5b4fc; }
+    .status-Contacted  { background: rgba(245,158,11,0.2);  color: #fcd34d; }
+    .status-Qualified  { background: rgba(16,185,129,0.2);  color: #6ee7b7; }
+    .status-Lost       { background: rgba(239,68,68,0.2);   color: #fca5a5; }
+
+    /* Activity log */
+    .activity-form { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; }
+
+    .activity-form select,
+    .activity-form textarea {
+      width: 100%; padding: 9px 12px;
+      background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 8px; font-size: 0.88rem; font-family: inherit;
+      outline: none; color: white; transition: border 0.2s;
+    }
+    .activity-form select option { background: #13132a; }
+    .activity-form textarea::placeholder { color: rgba(255,255,255,0.3); }
+    .activity-form select:focus,
+    .activity-form textarea:focus { border-color: #4f46e5; }
+    .activity-form textarea { resize: vertical; min-height: 70px; }
+
+    .btn {
+      padding: 9px 18px; border: none; border-radius: 8px;
+      font-size: 0.88rem; cursor: pointer; font-weight: 500;
+      transition: opacity 0.2s;
+    }
+    .btn:hover { opacity: 0.85; }
+    .btn-primary { background: #4f46e5; color: white; }
+    .btn-danger  { background: transparent; border: none; color: #f87171; font-size: 0.8rem; cursor: pointer; padding: 2px 6px; }
+
+    /* Timeline */
+    .timeline { display: flex; flex-direction: column; gap: 12px; }
+
+    .activity-item {
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+      animation: fadeUp 0.3s ease both;
+    }
+
+    @keyframes fadeUp {
+      from { opacity:0; transform:translateY(8px); }
+      to   { opacity:1; transform:translateY(0); }
+    }
+
+    .activity-icon {
+      width: 34px; height: 34px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1rem;
+      flex-shrink: 0;
+    }
+    .icon-call    { background: #dbeafe; }
+    .icon-email   { background: #fef9c3; }
+    .icon-meeting { background: #dcfce7; }
+    .icon-note    { background: #f3e8ff; }
+
+    .activity-body { flex: 1; }
+    .activity-meta {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 2px;
+    }
+    .activity-type { font-size: 0.78rem; font-weight: 600; color: rgba(255,255,255,0.7); text-transform: capitalize; }
+    .activity-date { font-size: 0.73rem; color: rgba(255,255,255,0.35); }
+    .activity-desc { font-size: 0.88rem; color: rgba(255,255,255,0.6); line-height: 1.5; }
+
+    .empty-activities { text-align:center; padding:32px; color:rgba(255,255,255,0.3); font-size:0.9rem; }
+
+    /* Toast */
+    #toast {
+      position: fixed; bottom: 24px; right: 24px;
+      background: #1a1a3a; border: 1px solid rgba(255,255,255,0.1);
+      color: white; padding: 12px 20px; border-radius: 10px;
+      font-size: 0.88rem; opacity: 0; transition: opacity 0.3s;
+      pointer-events: none; z-index: 999; display: flex; align-items: center; gap: 12px;
+    }
+    #toast.show { opacity: 1; pointer-events: auto; }
+    #toastUndo {
+      background: #4f46e5; border: none; color: white;
+      padding: 4px 12px; border-radius: 6px;
+      font-size: 0.82rem; cursor: pointer; font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+
+<div class="blob blob-1"></div>
+<div class="blob blob-2"></div>
+
+<header>
+  <a class="back-btn" href="/dashboard">&#8592; Back to Dashboard</a>
+</header>
+
+<div class="container">
+  <div class="grid">
+
+    <!-- Left: Lead info -->
+    <div class="card">
+      <h2>Lead Information</h2>
+      <div id="leadInfo"><p style="color:#9ca3af">Loading...</p></div>
+    </div>
+
+    <!-- Right: Activity log -->
+    <div class="card">
+      <h2>Activity Log</h2>
+
+      <div class="activity-form">
+        <select id="actType">
+          <option value="call">📞 Call</option>
+          <option value="email">📧 Email</option>
+          <option value="meeting">🤝 Meeting</option>
+          <option value="note">📝 Note</option>
+        </select>
+        <textarea id="actDesc" placeholder="What happened? e.g. Left voicemail, sent intro email..."></textarea>
+        <button class="btn btn-primary" onclick="addActivity()">+ Log Activity</button>
+      </div>
+
+      <div class="timeline" id="timeline">
+        <div class="empty-activities">No activities yet.</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Quotes section -->
+  <div class="card" style="margin-top:24px">
+    <h2 style="display:flex;align-items:center;justify-content:space-between">
+      Quotes
+      <button class="btn btn-primary" style="font-size:0.82rem;padding:7px 14px" onclick="openNewQuoteModal()">+ New Quote</button>
+    </h2>
+    <div id="quotesList"><p style="color:#9ca3af;font-size:0.9rem">No quotes yet.</p></div>
+  </div>
+
+</div>
+
+<!-- New Quote Modal -->
+<div class="modal-bg" id="quoteModalBg" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:200;align-items:center;justify-content:center">
+  <div style="background:white;border-radius:14px;padding:28px;width:100%;max-width:440px;box-shadow:0 8px 32px rgba(0,0,0,0.18)">
+    <h2 style="font-size:1.05rem;margin-bottom:16px">New Quote</h2>
+    <label style="font-size:0.82rem;font-weight:600;color:#374151;display:block;margin-bottom:4px">Quote Title *</label>
+    <input id="quoteTitle" type="text" placeholder="e.g. Product Proposal — June 2026"
+      style="width:100%;padding:10px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:0.9rem;outline:none;margin-bottom:12px;font-family:inherit" />
+    <label style="font-size:0.82rem;font-weight:600;color:#374151;display:block;margin-bottom:4px">Notes (optional)</label>
+    <textarea id="quoteNotes" placeholder="Any context for this quote..."
+      style="width:100%;padding:10px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:0.9rem;outline:none;resize:vertical;min-height:70px;font-family:inherit"></textarea>
+    <div style="display:flex;gap:10px;margin-top:16px;justify-content:flex-end">
+      <button class="btn" style="background:#f3f4f6;color:#374151" onclick="closeNewQuoteModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="createQuote()">Create Quote</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast">
+  <span id="toastMsg"></span>
+  <button id="toastUndo" style="display:none" onclick="runUndo()">Undo</button>
+</div>
+
+<script>
+  const leadId = {{ lead_id }};
+  const iconMap = { call:"📞", email:"📧", meeting:"🤝", note:"📝" };
+  const iconClass = { call:"icon-call", email:"icon-email", meeting:"icon-meeting", note:"icon-note" };
+
+  async function loadLead() {
+    const res  = await fetch(`/api/leads/${leadId}`);
+    const lead = await res.json();
+
+    document.title = lead.name + " — Lead Tracker";
+
+    document.getElementById("leadInfo").innerHTML = `
+      <div class="lead-name">${esc(lead.name)}</div>
+      <select class="status-select status-${lead.status}" onchange="changeStatus(this)">
+        <option ${lead.status==='New'       ?'selected':''}>New</option>
+        <option ${lead.status==='Contacted' ?'selected':''}>Contacted</option>
+        <option ${lead.status==='Qualified' ?'selected':''}>Qualified</option>
+        <option ${lead.status==='Lost'      ?'selected':''}>Lost</option>
+      </select>
+      <div class="info-row">
+        <div class="info-item">
+          <span class="info-label">Email</span>
+          <span class="info-value">${esc(lead.email) || '—'}</span>
+        </div>
+        <div class="info-item">
+          <span class="info-label">Phone</span>
+          <span class="info-value">${esc(lead.phone) || '—'}</span>
+        </div>
+        <div class="info-item">
+          <span class="info-label">Source</span>
+          <span class="info-value">${esc(lead.source) || '—'}</span>
+        </div>
+        <div class="info-item">
+          <span class="info-label">Date Added</span>
+          <span class="info-value">${formatDate(lead.created_at)}</span>
+        </div>
+      </div>
+      <div class="info-label" style="margin-bottom:6px">Notes</div>
+      <div class="notes-box">${esc(lead.notes) || 'No notes added.'}</div>
+    `;
+  }
+
+  async function changeStatus(selectEl) {
+    const newStatus = selectEl.value;
+    selectEl.className = `status-select status-${newStatus}`;
+    await fetch(`/api/leads/${leadId}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: newStatus }),
+    });
+
+    // Re-fetch to send full lead data
+    const res  = await fetch(`/api/leads/${leadId}`);
+    const lead = await res.json();
+    await fetch(`/api/leads/${leadId}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...lead, status: newStatus }),
+    });
+    toast("Status updated to " + newStatus);
+  }
+
+  async function loadActivities() {
+    const res  = await fetch(`/api/leads/${leadId}/activities`);
+    const list = await res.json();
+    const tl   = document.getElementById("timeline");
+
+    if (list.length === 0) {
+      tl.innerHTML = `<div class="empty-activities">No activities yet — log your first one above!</div>`;
+      return;
+    }
+
+    tl.innerHTML = list.map(a => `
+      <div class="activity-item" id="act-${a.id}">
+        <div class="activity-icon ${iconClass[a.type] || 'icon-note'}">${iconMap[a.type] || '📝'}</div>
+        <div class="activity-body">
+          <div class="activity-meta">
+            <span class="activity-type">${esc(a.type)}</span>
+            <span style="display:flex;align-items:center;gap:8px">
+              <span class="activity-date">${formatDateTime(a.created_at)}</span>
+              <button class="btn-danger" onclick="deleteActivity(${a.id})" title="Delete">&#10005;</button>
+            </span>
+          </div>
+          <div class="activity-desc">${esc(a.description)}</div>
+        </div>
+      </div>
+    `).join("");
+  }
+
+  async function addActivity() {
+    const type = document.getElementById("actType").value;
+    const desc = document.getElementById("actDesc").value.trim();
+    if (!desc) { toast("Please enter a description."); return; }
+
+    await fetch(`/api/leads/${leadId}/activities`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ type, description: desc }),
+    });
+
+    document.getElementById("actDesc").value = "";
+    loadActivities();
+    toast("Activity logged!");
+  }
+
+  function deleteActivity(id) {
+    const el = document.getElementById("act-" + id);
+    if (!el) return;
+    el.style.display = "none";
+    scheduleUndo(
+      "Activity deleted.",
+      () => { el.style.display = ""; },
+      async () => {
+        await fetch(`/api/activities/${id}`, { method: "DELETE" });
+        el.remove();
+        const tl = document.getElementById("timeline");
+        if (!tl.querySelector(".activity-item")) {
+          tl.innerHTML = `<div class="empty-activities">No activities yet — log your first one above!</div>`;
+        }
+      }
+    );
+  }
+
+  function esc(str) {
+    if (!str) return "";
+    return str.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+  }
+
+  function formatDate(dt) {
+    if (!dt) return "—";
+    return new Date(dt).toLocaleDateString("en-GB", { day:"2-digit", month:"short", year:"numeric" });
+  }
+
+  function formatDateTime(dt) {
+    if (!dt) return "";
+    return new Date(dt).toLocaleDateString("en-GB", { day:"2-digit", month:"short", year:"numeric", hour:"2-digit", minute:"2-digit" });
+  }
+
+  let toastTimer = null;
+  let pendingUndo = null;
+
+  function scheduleUndo(msg, onUndo, onConfirm) {
+    if (pendingUndo) { pendingUndo.confirm(); clearTimeout(pendingUndo.timer); }
+    const timer = setTimeout(() => { onConfirm(); pendingUndo = null; hideToast(); }, 5000);
+    pendingUndo = { onUndo, confirm: onConfirm, timer };
+    toast(msg, true);
+  }
+
+  function runUndo() {
+    if (!pendingUndo) return;
+    clearTimeout(pendingUndo.timer);
+    pendingUndo.onUndo();
+    pendingUndo = null;
+    toast("Undone!");
+  }
+
+  function hideToast() {
+    document.getElementById("toast").classList.remove("show");
+  }
+
+  function toast(msg, showUndo = false) {
+    const el     = document.getElementById("toast");
+    const msgEl  = document.getElementById("toastMsg");
+    const undoEl = document.getElementById("toastUndo");
+    msgEl.textContent    = msg;
+    undoEl.style.display = showUndo ? "inline-block" : "none";
+    el.classList.add("show");
+    if (toastTimer) clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => hideToast(), showUndo ? 5000 : 2500);
+  }
+
+  // ── Quotes ────────────────────────────────────────────
+  const statusColors = { Draft:"#f3f4f6", Sent:"#dbeafe", Accepted:"#dcfce7", Declined:"#fee2e2" };
+  const statusText   = { Draft:"#374151", Sent:"#1d4ed8", Accepted:"#166534", Declined:"#991b1b" };
+
+  async function loadQuotes() {
+    const res   = await fetch(`/api/leads/${leadId}/quotes`);
+    const list  = await res.json();
+    const el    = document.getElementById("quotesList");
+
+    if (!list.length) {
+      el.innerHTML = `<p style="color:#9ca3af;font-size:0.9rem">No quotes yet — click New Quote to create one.</p>`;
+      return;
+    }
+
+    el.innerHTML = list.map(q => `
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid #f3f4f6">
+        <div>
+          <a href="/quote/${q.id}" style="font-weight:600;color:#4f46e5;text-decoration:none;font-size:0.93rem">${esc(q.title)}</a>
+          <div style="font-size:0.78rem;color:#9ca3af;margin-top:2px">${formatDate(q.created_at)}</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <span style="padding:3px 12px;border-radius:999px;font-size:0.75rem;font-weight:700;background:${statusColors[q.status]};color:${statusText[q.status]}">${q.status}</span>
+          <button class="btn-danger" onclick="deleteQuote(${q.id})" title="Delete">&#10005;</button>
+        </div>
+      </div>
+    `).join("");
+  }
+
+  function openNewQuoteModal() {
+    document.getElementById("quoteModalBg").style.display = "flex";
+    document.getElementById("quoteTitle").focus();
+  }
+
+  function closeNewQuoteModal() {
+    document.getElementById("quoteModalBg").style.display = "none";
+    document.getElementById("quoteTitle").value  = "";
+    document.getElementById("quoteNotes").value  = "";
+  }
+
+  async function createQuote() {
+    const title = document.getElementById("quoteTitle").value.trim();
+    if (!title) { toast("Please enter a quote title."); return; }
+    const res  = await fetch(`/api/leads/${leadId}/quotes`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title, notes: document.getElementById("quoteNotes").value.trim() }),
+    });
+    const quote = await res.json();
+    closeNewQuoteModal();
+    window.location.href = `/quote/${quote.id}`;
+  }
+
+  async function deleteQuote(id) {
+    const res   = await fetch(`/api/quotes/${id}`);
+    const data  = await res.json();
+    const quote = data.quote;
+
+    await fetch(`/api/quotes/${id}`, { method: "DELETE" });
+    loadQuotes();
+
+    scheduleUndo(
+      "Quote deleted.",
+      async () => {
+        await fetch(`/api/leads/${leadId}/quotes`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ title: quote.title, status: quote.status, notes: quote.notes }),
+        });
+        loadQuotes();
+      },
+      () => {}
+    );
+  }
+
+  document.getElementById("quoteModalBg").addEventListener("click", function(e) {
+    if (e.target === this) closeNewQuoteModal();
+  });
+
+  loadLead();
+  loadActivities();
+  loadQuotes();
+</script>
+
+</body>
+</html>

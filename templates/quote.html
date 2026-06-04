@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Quote</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #0c0c1e;
+      color: #e2e2f0;
+      animation: pageFadeIn 0.5s ease both;
+      min-height: 100vh;
+    }
+
+    .blob {
+      position: fixed; border-radius: 50%;
+      filter: blur(90px); opacity: 0.12; pointer-events: none; z-index: 0;
+    }
+    .blob-1 { width:500px;height:500px;background:#4f46e5;top:-150px;left:-100px;animation:drift1 12s ease-in-out infinite alternate; }
+    .blob-2 { width:400px;height:400px;background:#7c3aed;bottom:-100px;right:-80px;animation:drift2 14s ease-in-out infinite alternate; }
+    @keyframes drift1 { from{transform:translate(0,0)} to{transform:translate(40px,30px)} }
+    @keyframes drift2 { from{transform:translate(0,0)} to{transform:translate(-40px,-30px)} }
+
+    @keyframes pageFadeIn {
+      from { opacity:0; transform:translateY(10px); }
+      to   { opacity:1; transform:translateY(0); }
+    }
+
+    header {
+      background: rgba(15,15,30,0.85);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid rgba(255,255,255,0.07);
+      color: white; padding: 16px 32px;
+      display: flex; align-items: center; gap: 16px;
+      position: sticky; top: 0; z-index: 50;
+    }
+
+    .back-btn {
+      color: rgba(255,255,255,0.6); text-decoration: none;
+      font-size: 0.88rem; display: flex; align-items: center; gap: 6px;
+      transition: color 0.2s;
+    }
+    .back-btn:hover { color: white; }
+    header h1 { font-size: 1.1rem; font-weight: 600; flex: 1; }
+
+    .status-select-header {
+      padding: 4px 14px; border-radius: 999px; border: none;
+      font-size: 0.8rem; font-weight: 700; cursor: pointer; outline: none;
+    }
+    .status-Draft    { background:#f3f4f6; color:#374151; }
+    .status-Sent     { background:#dbeafe; color:#1d4ed8; }
+    .status-Accepted { background:#dcfce7; color:#166534; }
+    .status-Declined { background:#fee2e2; color:#991b1b; }
+
+    .container { max-width: 1000px; margin: 32px auto; padding: 0 24px; position: relative; z-index: 1; }
+
+    .card {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 12px; padding: 24px; margin-bottom: 24px;
+      backdrop-filter: blur(8px);
+    }
+
+    .card-title {
+      font-size: 1rem; font-weight: 700; color: rgba(255,255,255,0.85);
+      margin-bottom: 18px; padding-bottom: 12px;
+      border-bottom: 1px solid #f3f4f6;
+      display: flex; align-items: center; gap: 8px;
+    }
+
+    /* Internal badge */
+    .internal-badge {
+      font-size: 0.7rem; font-weight: 700; padding: 2px 10px;
+      border-radius: 999px; background: #fef9c3; color: #92400e;
+      letter-spacing: 0.5px; text-transform: uppercase;
+    }
+
+    /* Add product form */
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .form-group { display: flex; flex-direction: column; gap: 4px; }
+    .form-group label { font-size: 0.75rem; font-weight: 600; color: rgba(255,255,255,0.4); text-transform: uppercase; letter-spacing: 0.4px; }
+    .form-group input {
+      padding: 8px 10px;
+      background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 7px; font-size: 0.88rem; outline: none;
+      font-family: inherit; color: white; transition: border 0.2s;
+    }
+    .form-group input::placeholder { color: rgba(255,255,255,0.25); }
+    .form-group input:focus { border-color: #4f46e5; }
+    .form-group textarea {
+      padding: 8px 10px;
+      background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 7px; font-size: 0.88rem; outline: none;
+      font-family: inherit; color: white; resize: none; height: 60px; transition: border 0.2s;
+    }
+    .form-group textarea::placeholder { color: rgba(255,255,255,0.25); }
+    .form-group textarea:focus { border-color: #4f46e5; }
+
+    .internal-fields { background: rgba(253,230,138,0.07); border: 1px solid rgba(253,230,138,0.2); border-radius: 10px; padding: 14px; margin-bottom: 12px; }
+    .internal-fields .internal-label {
+      font-size: 0.72rem; font-weight: 700; color: #fbbf24;
+      text-transform: uppercase; letter-spacing: 0.6px;
+      margin-bottom: 10px; display: flex; align-items: center; gap: 6px;
+    }
+
+    .btn {
+      padding: 9px 18px; border: none; border-radius: 8px;
+      font-size: 0.88rem; cursor: pointer; font-weight: 500;
+      transition: opacity 0.2s;
+    }
+    .btn:hover { opacity: 0.85; }
+    .btn-primary { background: #4f46e5; color: white; }
+    .btn-sm { padding: 5px 12px; font-size: 0.78rem; }
+    .btn-danger-sm { background: rgba(239,68,68,0.15); color: #f87171; padding: 4px 10px; font-size: 0.78rem; border: 1px solid rgba(239,68,68,0.2); border-radius: 6px; cursor: pointer; }
+    .btn-danger-sm:hover { background: rgba(239,68,68,0.25); }
+
+    /* Items table */
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.84rem; }
+    thead th {
+      text-align: left; padding: 10px 12px;
+      background: rgba(255,255,255,0.04); border-bottom: 1px solid rgba(255,255,255,0.08);
+      color: rgba(255,255,255,0.5); font-weight: 600; white-space: nowrap;
+    }
+    tbody tr { border-bottom: 1px solid rgba(255,255,255,0.05); }
+    tbody tr:hover { background: rgba(255,255,255,0.03); }
+    tbody td { padding: 10px 12px; vertical-align: middle; color: #e2e2f0; }
+
+    .internal-col { background: rgba(253,230,138,0.05) !important; }
+    .margin-good { color: #166534; font-weight: 700; }
+    .margin-warn { color: #92400e; font-weight: 700; }
+    .margin-bad  { color: #991b1b; font-weight: 700; }
+
+    /* Totals */
+    .totals-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+      gap: 14px;
+      margin-top: 4px;
+    }
+
+    .total-box {
+      background: rgba(255,255,255,0.04); border-radius: 10px; padding: 14px 16px;
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+    .total-box.highlight { background: rgba(16,185,129,0.08); border-color: rgba(16,185,129,0.2); }
+    .total-box.internal  { background: rgba(253,230,138,0.06); border-color: rgba(253,230,138,0.15); }
+    .total-box .t-label  { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.5px; color: rgba(255,255,255,0.35); font-weight: 600; margin-bottom: 4px; }
+    .total-box .t-value  { font-size: 1.3rem; font-weight: 700; color: white; }
+    .total-box.internal .t-label { color: #fbbf24; }
+
+    .empty-items { text-align:center; padding:32px; color:#9ca3af; font-size:0.9rem; }
+
+    /* Print button */
+    .btn-print { background: #0f766e; color: white; }
+
+    /* ── Print styles ───────────────────────────────────── */
+    @media print {
+      /* Hide everything interactive */
+      header .back-btn,
+      header #statusSelect,
+      header .btn-print,
+      .card:first-of-type,        /* hide the add-product form */
+      .btn-danger-sm,
+      #toast,
+      .internal-badge { display: none !important; }
+
+      body { background: white; animation: none; }
+
+      header {
+        background: #1a1a2e !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+        padding: 20px 32px;
+        margin-bottom: 24px;
+      }
+
+      header h1 { font-size: 1.4rem; }
+
+      .print-meta {
+        display: flex !important;
+        gap: 32px;
+        margin-bottom: 24px;
+        padding: 0 8px;
+      }
+
+      .container { margin: 0; padding: 0 16px; }
+
+      .card {
+        box-shadow: none !important;
+        border: 1px solid #e5e7eb;
+        break-inside: avoid;
+      }
+
+      /* Hide internal columns */
+      .internal-col,
+      thead th.internal-col { display: none !important; }
+
+      /* Hide internal total boxes */
+      .total-box.internal { display: none !important; }
+
+      /* Colour-coded margins still print */
+      .margin-good, .margin-warn, .margin-bad {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+
+      .total-box {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+    }
+
+    /* Print meta row (hidden on screen, shown on print) */
+    .print-meta { display: none; font-size: 0.88rem; color: #374151; }
+    .print-meta span { display: flex; flex-direction: column; gap: 2px; }
+    .print-meta strong { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.5px; color: #9ca3af; }
+
+    /* Toast */
+    #toast {
+      position:fixed; bottom:24px; right:24px;
+      background:#1a1a3a; border:1px solid rgba(255,255,255,0.1);
+      color:white; padding:12px 20px; border-radius:10px;
+      font-size:0.88rem; opacity:0; transition:opacity 0.3s;
+      pointer-events:none; z-index:999; display:flex; align-items:center; gap:12px;
+    }
+    #toast.show { opacity:1; pointer-events:auto; }
+    #toastUndo {
+      background:#4f46e5; border:none; color:white;
+      padding:4px 12px; border-radius:6px;
+      font-size:0.82rem; cursor:pointer; font-weight:600;
+    }
+  </style>
+</head>
+<body>
+
+<div class="blob blob-1"></div>
+<div class="blob blob-2"></div>
+
+<header>
+  <a class="back-btn" id="backLink" href="#">&#8592; Back to Lead</a>
+  <div style="margin-left:auto;display:flex;align-items:center;gap:10px">
+  <select class="status-select-header status-Draft" id="statusSelect" onchange="updateStatus()">
+    <option value="Draft">Draft</option>
+    <option value="Sent">Sent</option>
+    <option value="Accepted">Accepted</option>
+    <option value="Declined">Declined</option>
+  </select>
+  <button class="btn btn-print" onclick="printQuote()">&#128438; Print / Save as PDF</button>
+  </div>
+</header>
+
+<!-- Shown only when printing -->
+<div class="print-meta" id="printMeta">
+  <span><strong>Quote</strong><span id="pm-title">—</span></span>
+  <span><strong>Client</strong><span id="pm-lead">—</span></span>
+  <span><strong>Date</strong><span id="pm-date">—</span></span>
+  <span><strong>Status</strong><span id="pm-status">—</span></span>
+</div>
+
+<div class="container">
+
+  <!-- Add Product Form -->
+  <div class="card">
+    <div class="card-title">Add Product Line Item</div>
+
+    <div class="form-grid">
+      <div class="form-group" style="grid-column:span 2">
+        <label>Product Name *</label>
+        <input type="text" id="f-name" placeholder="e.g. Premium Widget" />
+      </div>
+      <div class="form-group" style="grid-column:span 2">
+        <label>Product Description</label>
+        <textarea id="f-desc" placeholder="Brief description of the product..."></textarea>
+      </div>
+      <div class="form-group">
+        <label>SKU</label>
+        <input type="text" id="f-sku" placeholder="e.g. WDG-001" />
+      </div>
+      <div class="form-group">
+        <label>Stock Level</label>
+        <input type="number" id="f-stock" placeholder="0" min="0" />
+      </div>
+      <div class="form-group">
+        <label>Quantity</label>
+        <input type="number" id="f-qty" placeholder="1" min="1" value="1" />
+      </div>
+      <div class="form-group">
+        <label>Unit Price ($)</label>
+        <input type="number" id="f-price" placeholder="0.00" step="0.01" min="0" />
+      </div>
+    </div>
+
+    <!-- Internal pricing -->
+    <div class="internal-fields">
+      <div class="internal-label">&#128274; Internal Pricing (not shared with customer)</div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Cost Price ($)</label>
+          <input type="number" id="f-cost" placeholder="0.00" step="0.01" min="0" />
+        </div>
+        <div class="form-group">
+          <label>Additional Costs ($)</label>
+          <input type="number" id="f-extra" placeholder="0.00" step="0.01" min="0" />
+          <span style="font-size:0.7rem;color:#9ca3af;margin-top:2px">Shipping, duties, etc.</span>
+        </div>
+      </div>
+    </div>
+
+    <button class="btn btn-primary" onclick="addItem()">+ Add to Quote</button>
+  </div>
+
+  <!-- Line Items Table -->
+  <div class="card">
+    <div class="card-title">
+      Quote Line Items
+      <span class="internal-badge">&#128274; Internal columns shown</span>
+    </div>
+
+    <div class="table-wrap">
+      <table id="itemsTable">
+        <thead>
+          <tr>
+            <th>Product</th>
+            <th>SKU</th>
+            <th>Stock</th>
+            <th>Qty</th>
+            <th>Unit Price</th>
+            <th>Line Total</th>
+            <th class="internal-col">Cost Price</th>
+            <th class="internal-col">Add. Costs</th>
+            <th class="internal-col">Gross Margin</th>
+            <th class="internal-col">Net Margin</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="itemsBody">
+          <tr><td colspan="11"><div class="empty-items">No items yet — add a product above.</div></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Totals -->
+  <div class="card">
+    <div class="card-title">Quote Summary</div>
+    <div class="totals-grid" id="totalsGrid">
+      <div class="total-box"><div class="t-label">Total Revenue</div><div class="t-value" id="t-revenue">$0.00</div></div>
+      <div class="total-box highlight"><div class="t-label">Gross Profit</div><div class="t-value" id="t-gross-profit">$0.00</div></div>
+      <div class="total-box internal"><div class="t-label">&#128274; Total Cost</div><div class="t-value" id="t-cost">$0.00</div></div>
+      <div class="total-box internal"><div class="t-label">&#128274; Net Profit</div><div class="t-value" id="t-net-profit">$0.00</div></div>
+      <div class="total-box highlight"><div class="t-label">Gross Margin %</div><div class="t-value" id="t-gross-pct">0%</div></div>
+      <div class="total-box internal"><div class="t-label">&#128274; Net Margin %</div><div class="t-value" id="t-net-pct">0%</div></div>
+    </div>
+  </div>
+
+</div>
+
+<div id="toast">
+  <span id="toastMsg"></span>
+  <button id="toastUndo" style="display:none" onclick="runUndo()">Undo</button>
+</div>
+
+<script>
+  const quoteId = {{ quote_id }};
+  let currentItems = [];
+  let leadId = null;
+
+  async function loadQuote() {
+    const res  = await fetch(`/api/quotes/${quoteId}`);
+    const data = await res.json();
+    const q    = data.quote;
+    leadId     = q.lead_id;
+
+    document.title = q.title + " — Lead Tracker";
+    document.getElementById("backLink").href = `/lead/${leadId}`;
+
+    const sel = document.getElementById("statusSelect");
+    sel.value = q.status;
+    sel.className = `status-select-header status-${q.status}`;
+
+    // Populate print meta
+    document.getElementById("pm-title").textContent  = q.title;
+    document.getElementById("pm-date").textContent   = new Date(q.created_at).toLocaleDateString("en-US", { day:"2-digit", month:"long", year:"numeric" });
+    document.getElementById("pm-status").textContent = q.status;
+
+    // Fetch lead name for print meta
+    const leadRes  = await fetch(`/api/leads/${q.lead_id}`);
+    const leadData = await leadRes.json();
+    document.getElementById("pm-lead").textContent = leadData.name || "—";
+
+    currentItems = data.items;
+    renderItems();
+  }
+
+  function printQuote() {
+    window.print();
+  }
+
+  async function updateStatus() {
+    const sel = document.getElementById("statusSelect");
+    sel.className = `status-select-header status-${sel.value}`;
+    const res = await fetch(`/api/quotes/${quoteId}`);
+    const data = await res.json();
+    await fetch(`/api/quotes/${quoteId}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...data.quote, status: sel.value }),
+    });
+    toast("Status updated to " + sel.value);
+  }
+
+  async function addItem() {
+    const name = document.getElementById("f-name").value.trim();
+    if (!name) { toast("Product name is required."); return; }
+
+    const payload = {
+      product_name:        name,
+      product_description: document.getElementById("f-desc").value.trim(),
+      sku:                 document.getElementById("f-sku").value.trim(),
+      stock_level:         parseInt(document.getElementById("f-stock").value) || 0,
+      quantity:            parseInt(document.getElementById("f-qty").value)   || 1,
+      unit_price:          parseFloat(document.getElementById("f-price").value) || 0,
+      cost_price:          parseFloat(document.getElementById("f-cost").value)  || 0,
+      additional_costs:    parseFloat(document.getElementById("f-extra").value) || 0,
+    };
+
+    const res  = await fetch(`/api/quotes/${quoteId}/items`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const item = await res.json();
+    currentItems.push(item);
+    clearForm();
+    renderItems();
+    toast("Product added!");
+  }
+
+  function clearForm() {
+    ["f-name","f-desc","f-sku","f-stock","f-price","f-cost","f-extra"].forEach(id => {
+      document.getElementById(id).value = "";
+    });
+    document.getElementById("f-qty").value = "1";
+  }
+
+  function removeItem(id) {
+    const item = currentItems.find(i => i.id === id);
+    currentItems = currentItems.filter(i => i.id !== id);
+    renderItems();
+    scheduleUndo(
+      "Item removed.",
+      () => { currentItems.push(item); currentItems.sort((a,b) => a.id - b.id); renderItems(); },
+      async () => { await fetch(`/api/quote-items/${id}`, { method: "DELETE" }); }
+    );
+  }
+
+  function calcItem(item) {
+    const qty        = item.quantity || 1;
+    const unitPrice  = item.unit_price || 0;
+    const costPrice  = item.cost_price || 0;
+    const addCosts   = item.additional_costs || 0;
+
+    const lineRevenue   = unitPrice * qty;
+    const grossProfit   = (unitPrice - costPrice) * qty;
+    const totalCost     = (costPrice + addCosts) * qty;
+    const netProfit     = lineRevenue - totalCost;
+    const grossMarginPct = unitPrice > 0 ? (grossProfit / lineRevenue) * 100 : 0;
+    const netMarginPct   = lineRevenue > 0 ? (netProfit / lineRevenue) * 100 : 0;
+
+    return { lineRevenue, grossProfit, totalCost, netProfit, grossMarginPct, netMarginPct };
+  }
+
+  function marginClass(pct) {
+    if (pct >= 40) return "margin-good";
+    if (pct >= 20) return "margin-warn";
+    return "margin-bad";
+  }
+
+  function renderItems() {
+    const tbody = document.getElementById("itemsBody");
+
+    if (!currentItems.length) {
+      tbody.innerHTML = `<tr><td colspan="11"><div class="empty-items">No items yet — add a product above.</div></td></tr>`;
+      updateTotals([]);
+      return;
+    }
+
+    tbody.innerHTML = currentItems.map(item => {
+      const c = calcItem(item);
+      return `
+        <tr>
+          <td>
+            <div style="font-weight:600">${esc(item.product_name)}</div>
+            <div style="font-size:0.78rem;color:#9ca3af">${esc(item.product_description)}</div>
+          </td>
+          <td>${esc(item.sku) || "—"}</td>
+          <td>${item.stock_level ?? "—"}</td>
+          <td>${item.quantity}</td>
+          <td>${fmt(item.unit_price)}</td>
+          <td style="font-weight:600">${fmt(c.lineRevenue)}</td>
+          <td class="internal-col">${fmt(item.cost_price)}</td>
+          <td class="internal-col">${fmt(item.additional_costs)}</td>
+          <td class="internal-col"><span class="${marginClass(c.grossMarginPct)}">${c.grossMarginPct.toFixed(1)}%</span></td>
+          <td class="internal-col"><span class="${marginClass(c.netMarginPct)}">${c.netMarginPct.toFixed(1)}%</span></td>
+          <td><button class="btn-danger-sm" onclick="removeItem(${item.id})">Remove</button></td>
+        </tr>
+      `;
+    }).join("");
+
+    updateTotals(currentItems);
+  }
+
+  function updateTotals(items) {
+    let totalRevenue = 0, totalGrossProfit = 0, totalCost = 0, totalNetProfit = 0;
+
+    items.forEach(item => {
+      const c = calcItem(item);
+      totalRevenue    += c.lineRevenue;
+      totalGrossProfit += c.grossProfit;
+      totalCost       += c.totalCost;
+      totalNetProfit  += c.netProfit;
+    });
+
+    const grossPct = totalRevenue > 0 ? (totalGrossProfit / totalRevenue) * 100 : 0;
+    const netPct   = totalRevenue > 0 ? (totalNetProfit   / totalRevenue) * 100 : 0;
+
+    document.getElementById("t-revenue").textContent     = fmt(totalRevenue);
+    document.getElementById("t-gross-profit").textContent = fmt(totalGrossProfit);
+    document.getElementById("t-cost").textContent         = fmt(totalCost);
+    document.getElementById("t-net-profit").textContent   = fmt(totalNetProfit);
+    document.getElementById("t-gross-pct").textContent    = grossPct.toFixed(1) + "%";
+    document.getElementById("t-net-pct").textContent      = netPct.toFixed(1) + "%";
+
+    document.getElementById("t-gross-pct").className = `t-value ${marginClass(grossPct)}`;
+    document.getElementById("t-net-pct").className   = `t-value ${marginClass(netPct)}`;
+  }
+
+  function fmt(n) {
+    return "$" + (n || 0).toFixed(2);
+  }
+
+  function esc(str) {
+    if (!str) return "";
+    return str.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+  }
+
+  let toastTimer = null;
+  let pendingUndo = null;
+
+  function scheduleUndo(msg, onUndo, onConfirm) {
+    if (pendingUndo) { pendingUndo.confirm(); clearTimeout(pendingUndo.timer); }
+    const timer = setTimeout(() => { onConfirm(); pendingUndo = null; hideToast(); }, 5000);
+    pendingUndo = { onUndo, confirm: onConfirm, timer };
+    toast(msg, true);
+  }
+
+  function runUndo() {
+    if (!pendingUndo) return;
+    clearTimeout(pendingUndo.timer);
+    pendingUndo.onUndo();
+    pendingUndo = null;
+    toast("Undone!");
+  }
+
+  function hideToast() { document.getElementById("toast").classList.remove("show"); }
+
+  function toast(msg, showUndo = false) {
+    const el     = document.getElementById("toast");
+    const msgEl  = document.getElementById("toastMsg");
+    const undoEl = document.getElementById("toastUndo");
+    msgEl.textContent    = msg;
+    undoEl.style.display = showUndo ? "inline-block" : "none";
+    el.classList.add("show");
+    if (toastTimer) clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => hideToast(), showUndo ? 5000 : 2500);
+  }
+
+  loadQuote();
+</script>
+
+</body>
+</html>

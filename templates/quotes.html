@@ -1,0 +1,189 @@
+{% extends 'base.html' %}
+{% block title %}Quotes — LeadFlow CRM{% endblock %}
+{% block page_title %}Quotes{% endblock %}
+
+{% block content %}
+<!-- Stats -->
+<div class="row g-3 mb-4">
+  <div class="col-md-3">
+    <div class="kpi-card">
+      <div class="d-flex align-items-center gap-3">
+        <div class="kpi-icon" style="background:#dbeafe"><i class="bi bi-file-text text-primary"></i></div>
+        <div>
+          <div class="kpi-val">{{ stats.total or 0 }}</div>
+          <div class="kpi-lbl">Total Quotes</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="kpi-card">
+      <div class="d-flex align-items-center gap-3">
+        <div class="kpi-icon" style="background:#fef3c7"><i class="bi bi-send text-warning"></i></div>
+        <div>
+          <div class="kpi-val">{{ stats.sent or 0 }}</div>
+          <div class="kpi-lbl">Sent to Customer</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="kpi-card">
+      <div class="d-flex align-items-center gap-3">
+        <div class="kpi-icon" style="background:#d1fae5"><i class="bi bi-check-circle text-success"></i></div>
+        <div>
+          <div class="kpi-val">{{ stats.accepted or 0 }}</div>
+          <div class="kpi-lbl">Accepted</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="kpi-card">
+      <div class="d-flex align-items-center gap-3">
+        <div class="kpi-icon" style="background:#d1fae5"><i class="bi bi-graph-up text-success"></i></div>
+        <div>
+          <div class="kpi-val" style="font-size:1.3rem;">R {{ "{:,.0f}".format(stats.accepted_value or 0) }}</div>
+          <div class="kpi-lbl">Accepted Value</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Status filter tabs + New Quote -->
+<div class="panel mb-3">
+  <div class="p-3 d-flex align-items-center gap-2 flex-wrap">
+    <a href="{{ url_for('quotes') }}" class="btn btn-sm {{ 'btn-primary' if not status_filter else 'btn-light' }}">All</a>
+    <a href="?status=draft" class="btn btn-sm {{ 'btn-primary' if status_filter=='draft' else 'btn-light' }}">Draft</a>
+    <a href="?status=sent" class="btn btn-sm {{ 'btn-primary' if status_filter=='sent' else 'btn-light' }}">Sent</a>
+    <a href="?status=accepted" class="btn btn-sm {{ 'btn-primary' if status_filter=='accepted' else 'btn-light' }}">Accepted</a>
+    <a href="?status=declined" class="btn btn-sm {{ 'btn-primary' if status_filter=='declined' else 'btn-light' }}">Declined</a>
+    <a href="?status=expired" class="btn btn-sm {{ 'btn-primary' if status_filter=='expired' else 'btn-light' }}">Expired</a>
+    <div class="ms-auto">
+      <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modalNewQuote">
+        <i class="bi bi-plus-lg me-1"></i>New Quote
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Quotes Table -->
+<div class="panel">
+  <table class="table mb-0">
+    <thead>
+      <tr>
+        <th>Quote #</th>
+        <th>Customer</th>
+        <th>Vehicle</th>
+        <th>Total Value</th>
+        <th>Monthly</th>
+        <th>Status</th>
+        <th>Date</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for q in quotes %}
+      <tr>
+        <td>
+          <a href="{{ url_for('quote_detail', qid=q.id) }}" class="fw-bold text-decoration-none" style="color:var(--accent)">
+            {{ q.quote_number }}
+          </a>
+        </td>
+        <td>
+          <div class="fw-semibold">{{ q.lead_name or '—' }}</div>
+          <div class="text-muted" style="font-size:.78rem;">{{ q.lead_email or '' }}</div>
+        </td>
+        <td>
+          {% if q.v_model %}
+            <div>{{ q.v_year }} {{ q.v_make }} {{ q.v_model }}</div>
+            <div class="text-muted" style="font-size:.78rem;">{{ q.v_trim or '' }}{% if q.v_stock %} · {{ q.v_stock }}{% endif %}</div>
+          {% else %}—{% endif %}
+        </td>
+        <td class="fw-semibold">
+          {% if q.selling_price or q.accessories_price %}
+            R {{ "{:,.0f}".format((q.selling_price or 0) + (q.accessories_price or 0) - (q.discount or 0)) }}
+          {% else %}—{% endif %}
+        </td>
+        <td>
+          {% if q.monthly_payment %}
+            <span class="text-success fw-semibold">R {{ "{:,.0f}".format(q.monthly_payment) }}/pm</span>
+          {% else %}—{% endif %}
+        </td>
+        <td>
+          {% if q.status == 'draft' %}<span class="pill" style="background:#f1f5f9;color:#475569">Draft</span>
+          {% elif q.status == 'sent' %}<span class="pill" style="background:#fef3c7;color:#92400e">Sent</span>
+          {% elif q.status == 'accepted' %}<span class="pill" style="background:#d1fae5;color:#065f46">Accepted</span>
+          {% elif q.status == 'declined' %}<span class="pill" style="background:#fee2e2;color:#991b1b">Declined</span>
+          {% else %}<span class="pill" style="background:#e2e8f0;color:#475569">Expired</span>{% endif %}
+        </td>
+        <td class="text-muted" style="font-size:.8rem;">{{ q.created_at[:10] }}</td>
+        <td>
+          <a href="{{ url_for('quote_detail', qid=q.id) }}" class="btn btn-sm btn-light">
+            <i class="bi bi-eye"></i>
+          </a>
+        </td>
+      </tr>
+      {% else %}
+      <tr>
+        <td colspan="8" class="text-center text-muted py-5">
+          <i class="bi bi-file-text fs-2 d-block mb-2"></i>
+          No quotes yet. Click <strong>New Quote</strong> to get started!
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<!-- New Quote Modal -->
+<div class="modal fade" id="modalNewQuote" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-file-plus me-2"></i>Create New Quote</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form action="{{ url_for('new_quote') }}" method="POST">
+        <div class="modal-body">
+          <p class="text-muted mb-3" style="font-size:.85rem;">
+            Choose a customer and vehicle to get started. You can fill in all the pricing details on the next screen.
+          </p>
+          <div class="row g-3">
+            <div class="col-12">
+              <label class="form-label fw-semibold">Customer <span class="text-danger">*</span></label>
+              <select name="lead_id" class="form-select" required>
+                <option value="">— Select customer —</option>
+                {% for l in all_leads %}
+                <option value="{{ l.id }}">{{ l.name }} ({{ l.email }})</option>
+                {% endfor %}
+              </select>
+              {% if not all_leads %}
+              <div class="form-text text-warning">No leads found. <a href="{{ url_for('leads') }}">Add a lead first.</a></div>
+              {% endif %}
+            </div>
+            <div class="col-12">
+              <label class="form-label fw-semibold">Vehicle <small class="text-muted fw-normal">(optional — can set later)</small></label>
+              <select name="vehicle_id" class="form-select">
+                <option value="">— No vehicle selected yet —</option>
+                {% for v in available_vehicles %}
+                <option value="{{ v.id }}">
+                  {{ v.year }} {{ v.make }} {{ v.model }} {{ v.trim }}
+                  — {{ v.stock_number or 'No stock #' }}
+                  {% if v.rrp %} (R {{ "{:,.0f}".format(v.rrp) }}){% endif %}
+                </option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary"><i class="bi bi-arrow-right me-1"></i>Create & Edit Quote</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,304 @@
+{% extends 'base.html' %}
+{% block title %}Finance — LeadFlow CRM{% endblock %}
+{% block page_title %}Finance Applications{% endblock %}
+
+{% block content %}
+<!-- Stats -->
+<div class="row g-3 mb-4">
+  <div class="col-md-3">
+    <div class="kpi-card">
+      <div class="d-flex align-items-center gap-3">
+        <div class="kpi-icon" style="background:#dbeafe"><i class="bi bi-bank text-primary"></i></div>
+        <div><div class="kpi-val">{{ stats.total or 0 }}</div><div class="kpi-lbl">Total Applications</div></div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="kpi-card">
+      <div class="d-flex align-items-center gap-3">
+        <div class="kpi-icon" style="background:#fef3c7"><i class="bi bi-hourglass text-warning"></i></div>
+        <div><div class="kpi-val">{{ stats.pending or 0 }}</div><div class="kpi-lbl">Pending / Submitted</div></div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="kpi-card">
+      <div class="d-flex align-items-center gap-3">
+        <div class="kpi-icon" style="background:#d1fae5"><i class="bi bi-check-circle text-success"></i></div>
+        <div><div class="kpi-val">{{ stats.approved or 0 }}</div><div class="kpi-lbl">Approved</div></div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="kpi-card">
+      <div class="d-flex align-items-center gap-3">
+        <div class="kpi-icon" style="background:#d1fae5"><i class="bi bi-currency-dollar text-success"></i></div>
+        <div>
+          <div class="kpi-val" style="font-size:1.3rem;">R {{ "{:,.0f}".format(stats.total_approved or 0) }}</div>
+          <div class="kpi-lbl">Total Approved Value</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Filter + Action -->
+<div class="panel mb-3">
+  <div class="p-3 d-flex align-items-center gap-2 flex-wrap">
+    <a href="{{ url_for('finance') }}" class="btn btn-sm {{ 'btn-primary' if not status_filter else 'btn-light' }}">All</a>
+    <a href="?status=pending" class="btn btn-sm {{ 'btn-primary' if status_filter=='pending' else 'btn-light' }}">Pending</a>
+    <a href="?status=submitted" class="btn btn-sm {{ 'btn-primary' if status_filter=='submitted' else 'btn-light' }}">Submitted</a>
+    <a href="?status=approved" class="btn btn-sm {{ 'btn-primary' if status_filter=='approved' else 'btn-light' }}">Approved</a>
+    <a href="?status=conditional" class="btn btn-sm {{ 'btn-primary' if status_filter=='conditional' else 'btn-light' }}">Conditional</a>
+    <a href="?status=declined" class="btn btn-sm {{ 'btn-primary' if status_filter=='declined' else 'btn-light' }}">Declined</a>
+    <div class="ms-auto">
+      <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modalAddFinance">
+        <i class="bi bi-plus-lg me-1"></i>Log Application
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Table -->
+<div class="panel">
+  <table class="table mb-0">
+    <thead>
+      <tr>
+        <th>Customer</th>
+        <th>Quote</th>
+        <th>Bank</th>
+        <th>Applied</th>
+        <th>Status</th>
+        <th>Approved Amount</th>
+        <th>Rate / Term</th>
+        <th>Monthly</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for fa in applications %}
+      <tr>
+        <td class="fw-semibold">{{ fa.lead_name or '—' }}</td>
+        <td>
+          {% if fa.quote_number %}
+          <a href="{{ url_for('quote_detail', qid=fa.quote_id) }}" class="text-decoration-none" style="color:var(--accent);">{{ fa.quote_number }}</a>
+          {% else %}—{% endif %}
+        </td>
+        <td class="fw-semibold">{{ fa.bank or '—' }}</td>
+        <td class="text-muted" style="font-size:.85rem;">{{ fa.application_date or '—' }}</td>
+        <td>
+          {% if fa.status == 'approved' %}<span class="pill" style="background:#d1fae5;color:#065f46">Approved</span>
+          {% elif fa.status == 'submitted' %}<span class="pill" style="background:#dbeafe;color:#1d4ed8">Submitted</span>
+          {% elif fa.status == 'pending' %}<span class="pill" style="background:#f1f5f9;color:#475569">Pending</span>
+          {% elif fa.status == 'conditional' %}<span class="pill" style="background:#fef3c7;color:#92400e">Conditional</span>
+          {% elif fa.status == 'declined' %}<span class="pill" style="background:#fee2e2;color:#991b1b">Declined</span>
+          {% else %}<span class="pill" style="background:#e2e8f0;color:#475569">{{ fa.status.title() }}</span>{% endif %}
+        </td>
+        <td class="fw-semibold">
+          {% if fa.approved_amount %}R {{ "{:,.0f}".format(fa.approved_amount) }}{% else %}—{% endif %}
+        </td>
+        <td style="font-size:.85rem;">
+          {% if fa.interest_rate_offered %}{{ fa.interest_rate_offered }}% / {{ fa.term_offered }}m{% else %}—{% endif %}
+        </td>
+        <td class="fw-semibold" style="color:#16a34a;">
+          {% if fa.monthly_offered %}R {{ "{:,.0f}".format(fa.monthly_offered) }}/pm{% else %}—{% endif %}
+        </td>
+        <td>
+          <button class="btn btn-sm btn-light" onclick="openEditFinance({{ fa.id }}, '{{ fa.lead_id }}', '{{ fa.quote_id or '' }}', '{{ fa.bank or '' }}', '{{ fa.status }}', '{{ fa.application_date or '' }}', {{ fa.approved_amount or 0 }}, {{ fa.interest_rate_offered or 0 }}, {{ fa.term_offered or 0 }}, {{ fa.monthly_offered or 0 }}, '{{ (fa.notes or '')|replace("'", "\\'") }}')">
+            <i class="bi bi-pencil"></i>
+          </button>
+        </td>
+      </tr>
+      {% else %}
+      <tr>
+        <td colspan="9" class="text-center text-muted py-5">
+          <i class="bi bi-bank fs-2 d-block mb-2"></i>
+          No finance applications yet. Click <strong>Log Application</strong> to start tracking.
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<!-- Add Finance Modal -->
+<div class="modal fade" id="modalAddFinance" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-bank me-2"></i>Log Finance Application</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form action="{{ url_for('add_finance_application') }}" method="POST">
+        <div class="modal-body">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Customer <span class="text-danger">*</span></label>
+              <select name="lead_id" class="form-select" required>
+                <option value="">— Select customer —</option>
+                {% for l in all_leads %}
+                <option value="{{ l.id }}">{{ l.name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Linked Quote</label>
+              <select name="quote_id" class="form-select">
+                <option value="">— No quote —</option>
+                {% for q in all_quotes %}
+                <option value="{{ q.id }}">{{ q.quote_number }} — {{ q.lead_name or '' }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Bank / Lender <span class="text-danger">*</span></label>
+              <select name="bank" class="form-select" required>
+                <option value="">— Select bank —</option>
+                <option>WesBank</option>
+                <option>FNB Vehicle Finance</option>
+                <option>Standard Bank Vehicle Finance</option>
+                <option>Absa Vehicle Finance</option>
+                <option>Nedbank / MFC</option>
+                <option>Hyundai Financial Services</option>
+                <option>Other</option>
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Application Date</label>
+              <input type="date" name="application_date" class="form-control">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Status</label>
+              <select name="status" class="form-select">
+                <option value="pending">Pending — not yet submitted</option>
+                <option value="submitted">Submitted — awaiting decision</option>
+                <option value="conditional">Conditional — more docs needed</option>
+                <option value="approved">Approved</option>
+                <option value="declined">Declined</option>
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Approved Amount (R)</label>
+              <input type="number" name="approved_amount" class="form-control" value="0" step="0.01" min="0">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Interest Rate Offered (%)</label>
+              <input type="number" name="interest_rate_offered" class="form-control" value="0" step="0.01" min="0">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Term Offered (months)</label>
+              <input type="number" name="term_offered" class="form-control" value="0" min="0">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Monthly Payment Offered (R)</label>
+              <input type="number" name="monthly_offered" class="form-control" value="0" step="0.01" min="0">
+            </div>
+            <div class="col-12">
+              <label class="form-label fw-semibold">Notes</label>
+              <textarea name="notes" class="form-control" rows="2" placeholder="e.g. Requires 3 months bank statements, needs guarantor…"></textarea>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary">Log Application</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Finance Modal -->
+<div class="modal fade" id="modalEditFinance" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Edit Finance Application</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form id="editFinanceForm" method="POST">
+        <div class="modal-body">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Bank / Lender</label>
+              <select name="bank" id="ef_bank" class="form-select">
+                <option value="">— Select bank —</option>
+                <option>WesBank</option>
+                <option>FNB Vehicle Finance</option>
+                <option>Standard Bank Vehicle Finance</option>
+                <option>Absa Vehicle Finance</option>
+                <option>Nedbank / MFC</option>
+                <option>Hyundai Financial Services</option>
+                <option>Other</option>
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Application Date</label>
+              <input type="date" name="application_date" id="ef_date" class="form-control">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Status</label>
+              <select name="status" id="ef_status" class="form-select">
+                <option value="pending">Pending</option>
+                <option value="submitted">Submitted</option>
+                <option value="conditional">Conditional</option>
+                <option value="approved">Approved</option>
+                <option value="declined">Declined</option>
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Approved Amount (R)</label>
+              <input type="number" name="approved_amount" id="ef_amount" class="form-control" step="0.01" min="0">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Interest Rate (%)</label>
+              <input type="number" name="interest_rate_offered" id="ef_rate" class="form-control" step="0.01">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Term (months)</label>
+              <input type="number" name="term_offered" id="ef_term" class="form-control">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Monthly (R)</label>
+              <input type="number" name="monthly_offered" id="ef_monthly" class="form-control" step="0.01">
+            </div>
+            <div class="col-12">
+              <label class="form-label fw-semibold">Notes</label>
+              <textarea name="notes" id="ef_notes" class="form-control" rows="2"></textarea>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer d-flex justify-content-between">
+          <button type="button" class="btn btn-outline-danger btn-sm" id="btnDeleteFinance">Delete</button>
+          <div class="d-flex gap-2">
+            <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+            <button type="submit" class="btn btn-primary">Save</button>
+          </div>
+        </div>
+      </form>
+      <form id="deleteFinanceForm" method="POST" style="display:none;"></form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function openEditFinance(id, leadId, quoteId, bank, status, date, amount, rate, term, monthly, notes) {
+  document.getElementById('editFinanceForm').action = '/finance/' + id + '/update';
+  document.getElementById('deleteFinanceForm').action = '/finance/' + id + '/delete';
+  document.getElementById('ef_bank').value    = bank;
+  document.getElementById('ef_status').value  = status;
+  document.getElementById('ef_date').value    = date;
+  document.getElementById('ef_amount').value  = amount;
+  document.getElementById('ef_rate').value    = rate;
+  document.getElementById('ef_term').value    = term;
+  document.getElementById('ef_monthly').value = monthly;
+  document.getElementById('ef_notes').value   = notes;
+  new bootstrap.Modal(document.getElementById('modalEditFinance')).show();
+}
+document.getElementById('btnDeleteFinance').addEventListener('click', function() {
+  if (confirm('Remove this application?')) document.getElementById('deleteFinanceForm').submit();
+});
+</script>
+{% endblock %}

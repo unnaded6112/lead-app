@@ -1,0 +1,93 @@
+{% extends 'base.html' %}
+{% block title %}Outreach — LeadFlow CRM{% endblock %}
+{% block page_title %}Outreach Log{% endblock %}
+
+{% block content %}
+<!-- KPIs -->
+<div class="row g-3 mb-4">
+  <div class="col-md-4">
+    <div class="kpi-card">
+      <div class="kpi-icon mb-3" style="background:#dbeafe;"><i class="bi bi-envelope-check" style="color:#1d4ed8;"></i></div>
+      <div class="kpi-val">{{ stats.total_sent }}</div>
+      <div class="kpi-lbl">Total Emails Sent</div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="kpi-card">
+      <div class="kpi-icon mb-3" style="background:#d1fae5;"><i class="bi bi-people" style="color:#065f46;"></i></div>
+      <div class="kpi-val">{{ stats.leads_contacted }}</div>
+      <div class="kpi-lbl">Leads Contacted</div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="kpi-card">
+      <div class="kpi-icon mb-3" style="background:#fef3c7;"><i class="bi bi-clock" style="color:#92400e;"></i></div>
+      <div class="kpi-val">{{ active_sequences }}</div>
+      <div class="kpi-lbl">Active Sequences</div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3">
+  <!-- Email Log -->
+  <div class="col-md-7">
+    <div class="panel">
+      <div class="panel-head"><h6>Email History</h6></div>
+      <table class="table mb-0">
+        <thead>
+          <tr>
+            <th>Lead</th>
+            <th>Subject</th>
+            <th>Template</th>
+            <th>Sent</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for e in log %}
+          <tr>
+            <td>
+              <div class="fw-semibold small">{{ e.lead_name }}</div>
+              <div class="text-muted" style="font-size:.75rem;">{{ e.company or '' }}</div>
+            </td>
+            <td class="small">{{ e.subject[:45] }}{% if e.subject|length > 45 %}…{% endif %}</td>
+            <td class="text-muted small">{{ e.template_name or 'Custom' }}</td>
+            <td class="text-muted small">{{ e.sent_at[:16].replace('T',' ') }}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="4" class="text-center text-muted py-4">No emails sent yet</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Scheduled Queue -->
+  <div class="col-md-5">
+    <div class="panel">
+      <div class="panel-head"><h6>Scheduled Queue</h6></div>
+      <div class="p-3">
+        {% for e in scheduled %}
+        <div class="border rounded p-2 mb-2">
+          <div class="d-flex justify-content-between align-items-start">
+            <div>
+              <div class="fw-semibold small">{{ e.lead_name }}</div>
+              <div class="text-muted" style="font-size:.75rem;">{{ e.template_name }}</div>
+              <div class="text-muted" style="font-size:.75rem;">{{ e.subject[:40] }}</div>
+            </div>
+            <div class="text-end">
+              <span class="badge bg-warning text-dark" style="font-size:.68rem;">Pending</span>
+              <div class="text-muted mt-1" style="font-size:.7rem;">{{ e.scheduled_for[:16].replace('T',' ') }}</div>
+            </div>
+          </div>
+        </div>
+        {% else %}
+        <div class="text-center text-muted py-4">
+          <i class="bi bi-check-circle fs-2 d-block mb-1"></i>
+          <span class="small">No pending emails</span>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

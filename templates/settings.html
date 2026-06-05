@@ -1,0 +1,89 @@
+{% extends 'base.html' %}
+{% block title %}Settings — LeadFlow CRM{% endblock %}
+{% block page_title %}Settings{% endblock %}
+
+{% block content %}
+<div class="row g-3">
+  <div class="col-lg-7">
+    <div class="panel">
+      <div class="panel-head"><h6>Email / SMTP Settings</h6></div>
+      <div class="p-4">
+        <form action="{{ url_for('settings') }}" method="POST">
+          <div class="alert alert-info small mb-4">
+            <i class="bi bi-info-circle me-1"></i>
+            <strong>Gmail users:</strong> Use <code>smtp.gmail.com</code> on port <code>587</code>.
+            Your password must be a <strong>Gmail App Password</strong> — not your regular password.
+            Go to <strong>Google Account → Security → 2-Step Verification → App Passwords</strong> to create one.
+          </div>
+
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Sender Name</label>
+              <input type="text" name="smtp_name" class="form-control"
+                     value="{{ settings.get('smtp_name','') }}" placeholder="Your Name">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">From Email Address</label>
+              <input type="email" name="smtp_email" class="form-control"
+                     value="{{ settings.get('smtp_email','') }}" placeholder="you@gmail.com">
+            </div>
+            <div class="col-md-8">
+              <label class="form-label fw-semibold">SMTP Host</label>
+              <input type="text" name="smtp_host" class="form-control"
+                     value="{{ settings.get('smtp_host','smtp.gmail.com') }}">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">SMTP Port</label>
+              <input type="number" name="smtp_port" class="form-control"
+                     value="{{ settings.get('smtp_port','587') }}">
+            </div>
+            <div class="col-12">
+              <label class="form-label fw-semibold">App Password</label>
+              <input type="password" name="smtp_password" class="form-control"
+                     value="{{ settings.get('smtp_password','') }}"
+                     placeholder="Gmail App Password (16 characters)">
+              <div class="form-text">Stored locally in your database — never sent anywhere else.</div>
+            </div>
+          </div>
+
+          <hr class="my-4">
+          <h6 class="fw-semibold mb-3">Sequence Settings</h6>
+          <div class="form-check form-switch mb-4">
+            <input class="form-check-input" type="checkbox" name="sequence_enabled" value="true"
+                   id="seqToggle" {{ 'checked' if settings.get('sequence_enabled')=='true' }}>
+            <label class="form-check-label" for="seqToggle">
+              Enable automated sequence engine (sends emails automatically in the background)
+            </label>
+          </div>
+
+          <button type="submit" class="btn btn-primary">Save Settings</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-5">
+    <div class="panel">
+      <div class="panel-head"><h6>How Automated Outreach Works</h6></div>
+      <div class="p-4 small text-muted">
+        <div class="d-flex gap-3 mb-4">
+          <div class="kpi-icon flex-shrink-0" style="background:#dbeafe;"><i class="bi bi-1-circle" style="color:#1d4ed8;"></i></div>
+          <div><strong class="text-dark">Add a Lead</strong><br>Enter the lead's name, email, and company.</div>
+        </div>
+        <div class="d-flex gap-3 mb-4">
+          <div class="kpi-icon flex-shrink-0" style="background:#d1fae5;"><i class="bi bi-2-circle" style="color:#065f46;"></i></div>
+          <div><strong class="text-dark">Start Sequence</strong><br>Click "Start Auto Sequence" on any lead page to enroll them.</div>
+        </div>
+        <div class="d-flex gap-3 mb-4">
+          <div class="kpi-icon flex-shrink-0" style="background:#ede9fe;"><i class="bi bi-3-circle" style="color:#5b21b6;"></i></div>
+          <div><strong class="text-dark">Auto-Send</strong><br>Emails fire automatically based on the delay days in your templates (Day 0, Day 3, Day 7…).</div>
+        </div>
+        <div class="d-flex gap-3">
+          <div class="kpi-icon flex-shrink-0" style="background:#fef3c7;"><i class="bi bi-4-circle" style="color:#92400e;"></i></div>
+          <div><strong class="text-dark">Track Everything</strong><br>View sent emails and the upcoming queue in Outreach Log.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

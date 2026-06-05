@@ -1,0 +1,428 @@
+{% extends 'base.html' %}
+{% block title %}{{ lead.name }} — LeadFlow CRM{% endblock %}
+{% block page_title %}{{ lead.name }}{% endblock %}
+
+{% block content %}
+<div class="row g-3">
+
+  <!-- Left: info + sequence -->
+  <div class="col-lg-4">
+
+    <!-- Lead Card -->
+    <div class="panel mb-3">
+      <div class="panel-head">
+        <h6>Lead Info</h6>
+        <button class="btn btn-sm btn-light" data-bs-toggle="modal" data-bs-target="#modalEditLead">
+          <i class="bi bi-pencil"></i> Edit
+        </button>
+      </div>
+      <div class="p-3">
+        <div class="text-center mb-3">
+          <div class="bg-primary text-white rounded-circle d-inline-flex align-items-center justify-content-center fw-bold"
+               style="width:52px;height:52px;font-size:1.25rem;">{{ lead.name[0].upper() }}</div>
+          <h6 class="mt-2 mb-0">{{ lead.name }}</h6>
+          {% if lead.title %}<div class="text-muted small">{{ lead.title }}</div>{% endif %}
+          {% if lead.company %}<div class="text-muted small">{{ lead.company }}</div>{% endif %}
+        </div>
+
+        <div class="d-flex gap-2 justify-content-center mb-3">
+          <span class="pill s-{{ lead.status }}">{{ lead.status.replace('_',' ').title() }}</span>
+          <span class="pill p-{{ lead.pipeline_stage }}">{{ lead.pipeline_stage.title() }}</span>
+        </div>
+
+        <div class="small">
+          <div class="d-flex gap-2 mb-1 align-items-center">
+            <i class="bi bi-envelope text-muted"></i>
+            <a href="mailto:{{ lead.email }}" class="text-decoration-none">{{ lead.email }}</a>
+          </div>
+          {% if lead.phone %}
+          <div class="d-flex gap-2 mb-1 align-items-center">
+            <i class="bi bi-telephone text-muted"></i>{{ lead.phone }}
+          </div>
+          {% endif %}
+          {% if lead.pipeline_value %}
+          <div class="d-flex gap-2 mb-1 align-items-center">
+            <i class="bi bi-currency-dollar text-muted"></i>${{ "%.0f"|format(lead.pipeline_value) }} value
+          </div>
+          {% endif %}
+          {% if lead.source %}
+          <div class="d-flex gap-2 mb-1 align-items-center">
+            <i class="bi bi-diagram-2 text-muted"></i>{{ lead.source.replace('_',' ').title() }}
+          </div>
+          {% endif %}
+          {% if lead.last_contacted %}
+          <div class="d-flex gap-2 align-items-center">
+            <i class="bi bi-clock-history text-muted"></i>Last contacted {{ lead.last_contacted[:10] }}
+          </div>
+          {% endif %}
+        </div>
+
+        {% if lead.notes %}
+        <div class="mt-3 p-2 bg-light rounded small"><strong>Notes:</strong> {{ lead.notes }}</div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="panel mb-3">
+      <div class="panel-head"><h6>Quick Actions</h6></div>
+      <div class="p-3 d-flex flex-column gap-2">
+        <a href="{{ url_for('quotes') }}" class="btn btn-outline-primary btn-sm">
+          <i class="bi bi-file-plus me-1"></i>Create Quote
+        </a>
+        <button class="btn btn-outline-success btn-sm" data-bs-toggle="modal" data-bs-target="#modalTestDrive">
+          <i class="bi bi-key me-1"></i>Schedule Test Drive
+        </button>
+        <button class="btn btn-outline-secondary btn-sm" data-bs-toggle="modal" data-bs-target="#modalAddFinanceFromLead">
+          <i class="bi bi-bank me-1"></i>Log Finance Application
+        </button>
+      </div>
+    </div>
+
+    <!-- Test Drives -->
+    <div class="panel mb-3">
+      <div class="panel-head">
+        <h6>Test Drives</h6>
+        <button class="btn btn-sm btn-light" data-bs-toggle="modal" data-bs-target="#modalTestDrive">
+          <i class="bi bi-plus-lg"></i>
+        </button>
+      </div>
+      <div class="p-3">
+        {% if lead_test_drives %}
+          {% for td in lead_test_drives %}
+          <div class="border rounded p-2 mb-2 small">
+            <div class="fw-semibold">{% if td.v_model %}{{ td.v_year }} {{ td.v_make }} {{ td.v_model }}{% else %}No vehicle{% endif %}</div>
+            <div class="text-muted">{{ td.scheduled_date }} at {{ td.scheduled_time }}</div>
+            <div class="mt-1">
+              {% if td.status == 'completed' %}<span class="pill" style="background:#d1fae5;color:#065f46;font-size:.65rem;">Completed</span>
+              {% elif td.status == 'no_show' %}<span class="pill" style="background:#fef3c7;color:#92400e;font-size:.65rem;">No Show</span>
+              {% elif td.status == 'cancelled' %}<span class="pill" style="background:#e2e8f0;color:#475569;font-size:.65rem;">Cancelled</span>
+              {% else %}<span class="pill" style="background:#dbeafe;color:#1d4ed8;font-size:.65rem;">Scheduled</span>{% endif %}
+            </div>
+          </div>
+          {% endfor %}
+        {% else %}
+          <div class="text-center text-muted py-2 small">No test drives yet</div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Quotes for this lead -->
+    {% if lead_quotes %}
+    <div class="panel mb-3">
+      <div class="panel-head"><h6>Quotes</h6></div>
+      <div class="p-2">
+        {% for q in lead_quotes %}
+        <a href="{{ url_for('quote_detail', qid=q.id) }}" class="d-flex justify-content-between align-items-center p-2 rounded text-decoration-none hover-row mb-1" style="font-size:.85rem;">
+          <span class="fw-semibold" style="color:var(--accent)">{{ q.quote_number }}</span>
+          <span class="text-muted">{{ q.v_model or 'No vehicle' }}</span>
+          {% if q.status == 'accepted' %}<span class="pill" style="background:#d1fae5;color:#065f46;font-size:.65rem;">Accepted</span>
+          {% elif q.status == 'sent' %}<span class="pill" style="background:#fef3c7;color:#92400e;font-size:.65rem;">Sent</span>
+          {% else %}<span class="pill" style="background:#f1f5f9;color:#475569;font-size:.65rem;">Draft</span>{% endif %}
+        </a>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Sequence Panel -->
+    <div class="panel">
+      <div class="panel-head"><h6>Auto Outreach Sequence</h6></div>
+      <div class="p-3">
+        {% if lead.sequence_active %}
+          <div class="alert alert-success py-2 small mb-3">
+            <i class="bi bi-check-circle me-1"></i>Sequence active — Step {{ lead.sequence_step }}
+          </div>
+          {% for s in scheduled %}
+          <div class="border rounded p-2 mb-2 small">
+            <div class="fw-semibold">{{ s.template_name }}</div>
+            <div class="text-muted"><i class="bi bi-clock me-1"></i>{{ s.scheduled_for[:16].replace('T',' ') }}</div>
+          </div>
+          {% endfor %}
+          <form action="{{ url_for('stop_sequence', lead_id=lead.id) }}" method="POST" class="mt-2">
+            <button class="btn btn-danger btn-sm w-100" onclick="return confirm('Stop this outreach sequence?')">
+              <i class="bi bi-stop-circle me-1"></i>Stop Sequence
+            </button>
+          </form>
+        {% else %}
+          <p class="text-muted small mb-3">
+            Start the automated email sequence to send follow-up emails at Day 0, Day 3, and Day 7 automatically.
+          </p>
+          <form action="{{ url_for('start_sequence', lead_id=lead.id) }}" method="POST">
+            <button class="btn btn-success btn-sm w-100">
+              <i class="bi bi-play-circle me-1"></i>Start Auto Sequence
+            </button>
+          </form>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Right: send email + history -->
+  <div class="col-lg-8">
+
+    <!-- Send Email -->
+    <div class="panel mb-3">
+      <div class="panel-head"><h6>Send Email</h6></div>
+      <div class="p-3">
+        <form action="{{ url_for('send_manual_email', lead_id=lead.id) }}" method="POST">
+          <div class="row g-3">
+            <div class="col-md-5">
+              <label class="form-label small fw-semibold">Use a Template (optional)</label>
+              <select name="template_id" class="form-select form-select-sm" id="tplSelect">
+                <option value="">Write custom email</option>
+                {% for t in templates %}
+                <option value="{{ t.id }}" data-subject="{{ t.subject }}" data-body="{{ t.body }}">
+                  {{ t.name }}
+                </option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-12">
+              <label class="form-label small fw-semibold">Subject</label>
+              <input type="text" name="custom_subject" id="emailSubject" class="form-control form-control-sm">
+            </div>
+            <div class="col-12">
+              <label class="form-label small fw-semibold">Message</label>
+              <textarea name="custom_body" id="emailBody" class="form-control form-control-sm" rows="6"></textarea>
+            </div>
+          </div>
+          <div class="mt-3">
+            <button type="submit" class="btn btn-primary btn-sm">
+              <i class="bi bi-send me-1"></i>Send Now
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Outreach History -->
+    <div class="panel">
+      <div class="panel-head"><h6>Outreach History</h6></div>
+      {% if history %}
+      <table class="table mb-0">
+        <thead>
+          <tr>
+            <th>Subject</th>
+            <th>Template</th>
+            <th>Status</th>
+            <th>Sent At</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for h in history %}
+          <tr>
+            <td class="small fw-semibold">{{ h.subject }}</td>
+            <td class="text-muted small">{{ h.template_name or 'Custom' }}</td>
+            <td><span class="badge bg-success" style="font-size:.7rem;">{{ h.status }}</span></td>
+            <td class="text-muted small">{{ h.sent_at[:16].replace('T',' ') }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <div class="text-center text-muted py-4">
+        <i class="bi bi-envelope fs-2 d-block mb-1"></i>
+        <span class="small">No emails sent yet</span>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- Edit Lead Modal -->
+<div class="modal fade" id="modalEditLead" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Edit Lead</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form action="{{ url_for('update_lead', lead_id=lead.id) }}" method="POST">
+        <div class="modal-body">
+          <div class="row g-3">
+            <div class="col-12">
+              <label class="form-label fw-semibold">Full Name *</label>
+              <input type="text" name="name" class="form-control" value="{{ lead.name }}" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Email *</label>
+              <input type="email" name="email" class="form-control" value="{{ lead.email }}" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Phone</label>
+              <input type="text" name="phone" class="form-control" value="{{ lead.phone or '' }}">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Company</label>
+              <input type="text" name="company" class="form-control" value="{{ lead.company or '' }}">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Job Title</label>
+              <input type="text" name="title" class="form-control" value="{{ lead.title or '' }}">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Status</label>
+              <select name="status" class="form-select">
+                {% for val, lbl in [('new','New'),('contacted','Contacted'),('qualified','Qualified'),('proposal','Proposal'),('closed_won','Closed Won'),('closed_lost','Closed Lost')] %}
+                <option value="{{ val }}" {{ 'selected' if lead.status==val }}>{{ lbl }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Pipeline Stage</label>
+              <select name="pipeline_stage" class="form-select">
+                {% for val, lbl in [('prospect','Prospect'),('lead','Lead'),('opportunity','Opportunity'),('customer','Customer')] %}
+                <option value="{{ val }}" {{ 'selected' if lead.pipeline_stage==val }}>{{ lbl }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Source</label>
+              <select name="source" class="form-select">
+                {% for val, lbl in [('manual','Manual'),('website','Website'),('referral','Referral'),('linkedin','LinkedIn'),('cold_outreach','Cold Outreach'),('event','Event')] %}
+                <option value="{{ val }}" {{ 'selected' if lead.source==val }}>{{ lbl }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Pipeline Value ($)</label>
+              <input type="number" name="pipeline_value" class="form-control" value="{{ lead.pipeline_value or 0 }}">
+            </div>
+            <div class="col-12">
+              <label class="form-label fw-semibold">Notes</label>
+              <textarea name="notes" class="form-control" rows="3">{{ lead.notes or '' }}</textarea>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer justify-content-between">
+          <form action="{{ url_for('delete_lead', lead_id=lead.id) }}" method="POST">
+            <button type="submit" class="btn btn-outline-danger btn-sm"
+                    onclick="return confirm('Permanently delete this lead?')">
+              <i class="bi bi-trash me-1"></i>Delete
+            </button>
+          </form>
+          <div>
+            <button type="button" class="btn btn-light btn-sm me-2" data-bs-dismiss="modal">Cancel</button>
+            <button type="submit" class="btn btn-primary btn-sm">Save Changes</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+<!-- Schedule Test Drive Modal -->
+<div class="modal fade" id="modalTestDrive" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-key me-2"></i>Schedule Test Drive</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form action="{{ url_for('add_test_drive') }}" method="POST">
+        <input type="hidden" name="lead_id" value="{{ lead.id }}">
+        <input type="hidden" name="redirect_to" value="{{ request.url }}">
+        <div class="modal-body">
+          <div class="row g-3">
+            <div class="col-12">
+              <label class="form-label fw-semibold">Vehicle</label>
+              <select name="vehicle_id" class="form-select">
+                <option value="">— No vehicle yet —</option>
+                {% for v in available_vehicles %}
+                <option value="{{ v.id }}">{{ v.year }} {{ v.make }} {{ v.model }} {{ v.trim or '' }} — {{ v.stock_number or 'No stock #' }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Date <span class="text-danger">*</span></label>
+              <input type="date" name="scheduled_date" class="form-control" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Time</label>
+              <input type="time" name="scheduled_time" class="form-control" value="10:00">
+            </div>
+            <div class="col-12">
+              <label class="form-label fw-semibold">Notes</label>
+              <textarea name="notes" class="form-control" rows="2"></textarea>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-success"><i class="bi bi-calendar-check me-1"></i>Schedule</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Log Finance Application Modal -->
+<div class="modal fade" id="modalAddFinanceFromLead" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-bank me-2"></i>Log Finance Application</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form action="{{ url_for('add_finance_application') }}" method="POST">
+        <input type="hidden" name="lead_id" value="{{ lead.id }}">
+        <div class="modal-body">
+          <div class="row g-3">
+            <div class="col-12">
+              <label class="form-label fw-semibold">Linked Quote</label>
+              <select name="quote_id" class="form-select">
+                <option value="">— No quote —</option>
+                {% for q in lead_quotes %}
+                <option value="{{ q.id }}">{{ q.quote_number }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Bank / Lender <span class="text-danger">*</span></label>
+              <select name="bank" class="form-select" required>
+                <option value="">— Select —</option>
+                <option>WesBank</option>
+                <option>FNB Vehicle Finance</option>
+                <option>Standard Bank Vehicle Finance</option>
+                <option>Absa Vehicle Finance</option>
+                <option>Nedbank / MFC</option>
+                <option>Hyundai Financial Services</option>
+                <option>Other</option>
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Status</label>
+              <select name="status" class="form-select">
+                <option value="pending">Pending</option>
+                <option value="submitted">Submitted</option>
+                <option value="approved">Approved</option>
+                <option value="declined">Declined</option>
+              </select>
+            </div>
+            <div class="col-12">
+              <label class="form-label fw-semibold">Notes</label>
+              <textarea name="notes" class="form-control" rows="2"></textarea>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary">Log Application</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const tplSelect = document.getElementById('tplSelect');
+  tplSelect.addEventListener('change', function () {
+    const opt = this.options[this.selectedIndex];
+    document.getElementById('emailSubject').value = opt.dataset.subject || '';
+    document.getElementById('emailBody').value = opt.dataset.body || '';
+  });
+</script>
+{% endblock %}

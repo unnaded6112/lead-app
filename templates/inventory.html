@@ -1,0 +1,626 @@
+{% extends 'base.html' %}
+{% block title %}Inventory — LeadFlow CRM{% endblock %}
+{% block page_title %}Vehicle Inventory{% endblock %}
+
+{% block content %}
+<!-- KPI Cards -->
+<div class="row g-3 mb-4">
+  <div class="col-md-3">
+    <div class="kpi-card">
+      <div class="d-flex align-items-center gap-3">
+        <div class="kpi-icon" style="background:#dbeafe"><i class="bi bi-car-front text-primary"></i></div>
+        <div><div class="kpi-val">{{ vehicles|length }}</div><div class="kpi-lbl">Total Stock</div></div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="kpi-card">
+      <div class="d-flex align-items-center gap-3">
+        <div class="kpi-icon" style="background:#d1fae5"><i class="bi bi-check-circle text-success"></i></div>
+        <div><div class="kpi-val">{{ stock_counts.get('available', 0) }}</div><div class="kpi-lbl">Available</div></div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="kpi-card">
+      <div class="d-flex align-items-center gap-3">
+        <div class="kpi-icon" style="background:#fef3c7"><i class="bi bi-clock text-warning"></i></div>
+        <div><div class="kpi-val">{{ stock_counts.get('reserved', 0) }}</div><div class="kpi-lbl">Reserved</div></div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="kpi-card">
+      <div class="d-flex align-items-center gap-3">
+        <div class="kpi-icon" style="background:#f1f5f9"><i class="bi bi-bag-check text-secondary"></i></div>
+        <div><div class="kpi-val">{{ stock_counts.get('sold', 0) }}</div><div class="kpi-lbl">Sold</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Filters & Actions -->
+<div class="panel mb-3" style="overflow:visible">
+  <div class="p-3">
+    <form method="GET" class="row g-2 align-items-end">
+      <div class="col-md-5">
+        <input type="text" name="search" id="inventorySearch" class="form-control form-control-sm"
+               placeholder="Search model, trim, VIN, stock number…" value="{{ search }}" autocomplete="off">
+      </div>
+      <div class="col-md-2">
+        <select name="status" class="form-select form-select-sm">
+          <option value="">All Statuses</option>
+          <option value="available" {{ 'selected' if status_filter=='available' }}>Available</option>
+          <option value="reserved" {{ 'selected' if status_filter=='reserved' }}>Reserved</option>
+          <option value="sold" {{ 'selected' if status_filter=='sold' }}>Sold</option>
+        </select>
+      </div>
+      <div class="col-md-2 d-flex gap-2">
+        <button type="submit" class="btn btn-primary btn-sm flex-grow-1">Filter</button>
+        <a href="{{ url_for('inventory') }}" class="btn btn-light btn-sm">Clear</a>
+      </div>
+      <div class="col-md-3 d-flex gap-2 justify-content-end">
+        <button type="button" class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#modalAddVehicle">
+          <i class="bi bi-plus-lg me-1"></i>Add Vehicle
+        </button>
+        <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-toggle="modal" data-bs-target="#modalImport">
+          <i class="bi bi-upload me-1"></i>Import CSV
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Stock Age Legend -->
+<div class="d-flex align-items-center gap-3 mb-2 px-1" style="font-size:.75rem; color:#64748b;">
+  <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#22c55e;"></span> &lt; 30 days</span>
+  <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#f59e0b;"></span> 30–60 days</span>
+  <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#f97316;"></span> 61–90 days</span>
+  <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#ef4444;"></span> 90+ days — needs attention</span>
+</div>
+
+<!-- Vehicle Table -->
+<div class="panel">
+  <div class="panel-head">
+    <h6>{{ vehicles|length }} Vehicle{{ 's' if vehicles|length != 1 }}</h6>
+  </div>
+  <div class="table-responsive">
+    <table class="table mb-0">
+      <thead>
+        <tr>
+          <th>Stock #</th>
+          <th>Vehicle</th>
+          <th>VIN</th>
+          <th>Colour</th>
+          <th>Km</th>
+          <th>Cost Price</th>
+          <th>RRP</th>
+          <th>Margin</th>
+          <th>Status</th>
+          <th>Days on Lot</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for v in vehicles %}
+        {% set age = v.age_days or 0 %}
+        {% set age_color = '#22c55e' if age < 30 else '#f59e0b' if age < 60 else '#f97316' if age < 90 else '#ef4444' %}
+        <tr {{ 'style="background:#fff5f5"' if age >= 90 else '' }}>
+          <td><span class="fw-semibold text-primary">{{ v.stock_number or '—' }}</span></td>
+          <td>
+            <div class="fw-semibold">{{ v.year }} {{ v.make }} {{ v.model }}</div>
+            <div class="text-muted" style="font-size:.78rem;">{{ v.trim }}{% if v.variant %} · {{ v.variant }}{% endif %}</div>
+          </td>
+          <td class="text-muted" style="font-size:.78rem; font-family:monospace;">{{ v.vin or '—' }}</td>
+          <td>
+            <div style="font-size:.82rem;">{{ v.color_exterior or '—' }}</div>
+            {% if v.color_interior %}<div class="text-muted" style="font-size:.75rem;">Int: {{ v.color_interior }}</div>{% endif %}
+          </td>
+          <td style="font-size:.85rem;">{{ "{:,}".format(v.mileage) if v.mileage else '0' }}</td>
+          <td style="font-size:.85rem;">{% if v.cost_price %}R {{ "{:,.0f}".format(v.cost_price) }}{% else %}—{% endif %}</td>
+          <td class="fw-semibold" style="font-size:.85rem;">{% if v.rrp %}R {{ "{:,.0f}".format(v.rrp) }}{% else %}—{% endif %}</td>
+          <td style="font-size:.82rem;">
+            {% if v.rrp and v.cost_price and v.rrp > 0 %}
+              {% set margin = ((v.rrp - v.cost_price) / v.rrp * 100) %}
+              <span class="{{ 'text-success' if margin >= 10 else 'text-warning' }} fw-semibold">{{ "%.1f"|format(margin) }}%</span>
+            {% else %}—{% endif %}
+          </td>
+          <td>
+            {% if v.status == 'available' %}<span class="pill" style="background:#d1fae5;color:#065f46">Available</span>
+            {% elif v.status == 'reserved' %}<span class="pill" style="background:#fef3c7;color:#92400e">Reserved</span>
+            {% else %}<span class="pill" style="background:#e2e8f0;color:#475569">Sold</span>{% endif %}
+          </td>
+          <td>
+            <span class="fw-bold" style="color:{{ age_color }};">{{ age }}d</span>
+          </td>
+          <td>
+            <button class="btn btn-sm btn-light"
+              data-id="{{ v.id }}"
+              data-vin="{{ v.vin or '' }}"
+              data-stock="{{ v.stock_number or '' }}"
+              data-year="{{ v.year or now_year }}"
+              data-make="{{ v.make or 'Hyundai' }}"
+              data-model="{{ v.model or '' }}"
+              data-trim="{{ v.trim or '' }}"
+              data-variant="{{ v.variant or '' }}"
+              data-color-ext="{{ v.color_exterior or '' }}"
+              data-color-int="{{ v.color_interior or '' }}"
+              data-mileage="{{ v.mileage or 0 }}"
+              data-cost="{{ v.cost_price or 0 }}"
+              data-rrp="{{ v.rrp or 0 }}"
+              data-status="{{ v.status }}"
+              data-notes="{{ v.notes or '' }}"
+              onclick="openEdit(this)">
+              <i class="bi bi-pencil"></i>
+            </button>
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="11" class="text-center text-muted py-5">
+            <i class="bi bi-car-front fs-2 d-block mb-2"></i>
+            No vehicles yet. Add your first vehicle or import a CSV!
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ── Add Vehicle Modal ── -->
+<div class="modal fade" id="modalAddVehicle" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-plus-circle me-2"></i>Add Vehicle to Inventory</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form action="{{ url_for('add_vehicle') }}" method="POST">
+        <div class="modal-body">
+          <div class="row g-3">
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Stock Number</label>
+              <input type="text" name="stock_number" class="form-control" placeholder="e.g. HYN-2026-001">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">VIN</label>
+              <input type="text" name="vin" class="form-control" maxlength="17" placeholder="17-character VIN">
+            </div>
+            <div class="col-md-2">
+              <label class="form-label fw-semibold">Year</label>
+              <input type="number" name="year" id="add_year" class="form-control" value="{{ now_year }}" min="2000" max="2030">
+            </div>
+            <div class="col-md-2">
+              <label class="form-label fw-semibold">Make</label>
+              <input type="text" name="make" id="add_make" class="form-control" value="Hyundai">
+            </div>
+
+            <!-- Hyundai cascade dropdowns -->
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Model <span class="text-danger">*</span></label>
+              <select name="model" id="add_model" class="form-select" onchange="populateTrims('add_model','add_trim','add_variant')" required>
+                <option value="">— Select model —</option>
+                <option>Venue</option>
+                <option>Grand i10</option>
+                <option>i20</option>
+                <option>i30</option>
+                <option>Elantra</option>
+                <option>Creta</option>
+                <option>Tucson</option>
+                <option>Kona</option>
+                <option>Santa Fe</option>
+                <option>Palisade</option>
+                <option>Staria</option>
+                <option>Ioniq 5</option>
+                <option>Ioniq 6</option>
+              </select>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Trim</label>
+              <select name="trim" id="add_trim" class="form-select" onchange="populateVariants('add_model','add_trim','add_variant')">
+                <option value="">— Select model first —</option>
+              </select>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Variant</label>
+              <select name="variant" id="add_variant" class="form-select">
+                <option value="">— Select trim first —</option>
+              </select>
+            </div>
+
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Exterior Colour</label>
+              <select name="color_exterior" class="form-select">
+                <option value="">— Select colour —</option>
+                <option>Phantom Black</option>
+                <option>Abyss Black Pearl</option>
+                <option>Atlas White</option>
+                <option>Serenity White Pearl</option>
+                <option>Typhoon Silver</option>
+                <option>Cosmic Grey</option>
+                <option>Amazon Grey</option>
+                <option>Stargazing Blue</option>
+                <option>Fiery Red</option>
+                <option>Lava Orange</option>
+                <option>Aqua Turquoise</option>
+                <option>Mangrove Green</option>
+              </select>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Interior Colour</label>
+              <select name="color_interior" class="form-select">
+                <option value="">— Select colour —</option>
+                <option>Black Cloth</option>
+                <option>Black Leather</option>
+                <option>Grey Cloth</option>
+                <option>Grey Leather</option>
+                <option>Dark Grey Leather</option>
+                <option>Beige Cloth</option>
+                <option>Beige Leather</option>
+                <option>Black &amp; Grey Cloth</option>
+                <option>Black &amp; Beige Leather</option>
+              </select>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Mileage (km)</label>
+              <input type="number" name="mileage" class="form-control" value="0" min="0">
+            </div>
+            <hr class="my-1">
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Cost Price (R) <small class="text-muted">— internal</small></label>
+              <input type="number" name="cost_price" class="form-control" value="0" step="0.01" min="0">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">RRP (R)</label>
+              <input type="number" name="rrp" class="form-control" value="0" step="0.01" min="0">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Status</label>
+              <select name="status" class="form-select">
+                <option value="available">Available</option>
+                <option value="reserved">Reserved</option>
+                <option value="sold">Sold</option>
+              </select>
+            </div>
+            <div class="col-12">
+              <label class="form-label fw-semibold">Notes</label>
+              <textarea name="notes" class="form-control" rows="2"></textarea>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-success"><i class="bi bi-plus-lg me-1"></i>Add to Inventory</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- ── Edit Vehicle Modal ── -->
+<div class="modal fade" id="modalEditVehicle" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-pencil me-2"></i>Edit Vehicle</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form id="editVehicleForm" method="POST">
+        <div class="modal-body">
+          <div class="row g-3">
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Stock Number</label>
+              <input type="text" name="stock_number" id="e_stock" class="form-control">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">VIN</label>
+              <input type="text" name="vin" id="e_vin" class="form-control" maxlength="17">
+            </div>
+            <div class="col-md-2">
+              <label class="form-label fw-semibold">Year</label>
+              <input type="number" name="year" id="e_year" class="form-control" min="2000" max="2030">
+            </div>
+            <div class="col-md-2">
+              <label class="form-label fw-semibold">Make</label>
+              <input type="text" name="make" id="e_make" class="form-control">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Model <span class="text-danger">*</span></label>
+              <select name="model" id="e_model" class="form-select" onchange="populateTrims('e_model','e_trim','e_variant')" required>
+                <option value="">— Select model —</option>
+                <option>Venue</option>
+                <option>Grand i10</option>
+                <option>i20</option>
+                <option>i30</option>
+                <option>Elantra</option>
+                <option>Creta</option>
+                <option>Tucson</option>
+                <option>Kona</option>
+                <option>Santa Fe</option>
+                <option>Palisade</option>
+                <option>Staria</option>
+                <option>Ioniq 5</option>
+                <option>Ioniq 6</option>
+              </select>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Trim</label>
+              <select name="trim" id="e_trim" class="form-select" onchange="populateVariants('e_model','e_trim','e_variant')">
+                <option value="">—</option>
+              </select>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Variant</label>
+              <select name="variant" id="e_variant" class="form-select">
+                <option value="">—</option>
+              </select>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Exterior Colour</label>
+              <select name="color_exterior" id="e_color_ext" class="form-select">
+                <option value="">— Select colour —</option>
+                <option>Phantom Black</option>
+                <option>Abyss Black Pearl</option>
+                <option>Atlas White</option>
+                <option>Serenity White Pearl</option>
+                <option>Typhoon Silver</option>
+                <option>Cosmic Grey</option>
+                <option>Amazon Grey</option>
+                <option>Stargazing Blue</option>
+                <option>Fiery Red</option>
+                <option>Lava Orange</option>
+                <option>Aqua Turquoise</option>
+                <option>Mangrove Green</option>
+              </select>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Interior Colour</label>
+              <select name="color_interior" id="e_color_int" class="form-select">
+                <option value="">— Select colour —</option>
+                <option>Black Cloth</option>
+                <option>Black Leather</option>
+                <option>Grey Cloth</option>
+                <option>Grey Leather</option>
+                <option>Dark Grey Leather</option>
+                <option>Beige Cloth</option>
+                <option>Beige Leather</option>
+                <option>Black &amp; Grey Cloth</option>
+                <option>Black &amp; Beige Leather</option>
+              </select>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Mileage (km)</label>
+              <input type="number" name="mileage" id="e_mileage" class="form-control" min="0">
+            </div>
+            <hr class="my-1">
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Cost Price (R)</label>
+              <input type="number" name="cost_price" id="e_cost" class="form-control" step="0.01" min="0">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">RRP (R)</label>
+              <input type="number" name="rrp" id="e_rrp" class="form-control" step="0.01" min="0">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Status</label>
+              <select name="status" id="e_status" class="form-select">
+                <option value="available">Available</option>
+                <option value="reserved">Reserved</option>
+                <option value="sold">Sold</option>
+              </select>
+            </div>
+            <div class="col-12">
+              <label class="form-label fw-semibold">Notes</label>
+              <textarea name="notes" id="e_notes" class="form-control" rows="2"></textarea>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer d-flex justify-content-between">
+          <button type="button" class="btn btn-outline-danger btn-sm" id="btnDeleteVehicle">
+            <i class="bi bi-trash me-1"></i>Delete
+          </button>
+          <div class="d-flex gap-2">
+            <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+            <button type="submit" class="btn btn-primary">Save Changes</button>
+          </div>
+        </div>
+      </form>
+      <form id="deleteVehicleForm" method="POST" style="display:none;"></form>
+    </div>
+  </div>
+</div>
+
+<!-- Live search dropdown — fixed position, never clipped -->
+<div id="searchSuggestions"
+     style="position:fixed;z-index:9999;background:#fff;border:1px solid #e2e8f0;border-radius:8px;
+            box-shadow:0 4px 20px rgba(0,0,0,.13);display:none;max-height:300px;overflow-y:auto;"></div>
+
+<!-- ── Import CSV Modal ── -->
+<div class="modal fade" id="modalImport" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-upload me-2"></i>Import from CSV</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="alert alert-info py-2 mb-3" style="font-size:.83rem;">
+          <strong>Column headers (copy exactly):</strong><br>
+          <code>VIN, Stock Number, Year, Make, Model, Trim, Variant, Exterior Color, Interior Color, Mileage, Cost Price, RRP, Status, Notes</code>
+        </div>
+        <p class="text-muted mb-3" style="font-size:.83rem;">
+          Status must be: <code>available</code>, <code>reserved</code>, or <code>sold</code>
+        </p>
+        <form action="{{ url_for('import_vehicles') }}" method="POST" enctype="multipart/form-data">
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Select CSV File</label>
+            <input type="file" name="csv_file" class="form-control" accept=".csv" required>
+          </div>
+          <div class="d-flex gap-2">
+            <button type="button" class="btn btn-light flex-grow-1" data-bs-dismiss="modal">Cancel</button>
+            <button type="submit" class="btn btn-primary flex-grow-1"><i class="bi bi-upload me-1"></i>Import</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// ── Hyundai SA model range ──────────────────────────────────────────────────
+const H = {
+  'Venue':      { 'Motion':['1.0T MT'], 'Fluid':['1.0T MT','1.0T DCT'], 'Elite':['1.0T DCT'] },
+  'Grand i10':  { 'Motion':['1.0 MT'], 'Fluid':['1.0 MT','1.2 MT','1.2 AT'] },
+  'i20':        { 'Motion':['1.2 MT'], 'Fluid':['1.0T MT','1.0T DCT'], 'Elite':['1.0T DCT'] },
+  'i30':        { 'Motion':['1.5 MT'], 'Fluid':['1.5 MT','1.5 DCT'] },
+  'Elantra':    { 'Executive':['1.5 MT','1.5 CVT'], 'Elite':['1.5 CVT'], 'N Line':['1.6T DCT'] },
+  'Creta':      { 'Motion':['1.5 MT','1.5 IVT'], 'Fluid':['1.5 IVT','1.5T DCT'], 'Elite':['1.5T DCT'], 'Executive':['1.5T DCT'] },
+  'Tucson':     { 'Motion':['2.0 MT','2.0 AT'], 'Fluid':['2.0 AT','1.6T DCT'], 'Elite':['1.6T DCT','1.6T 4WD DCT'], 'Executive':['1.6T 4WD DCT'] },
+  'Kona':       { 'Motion':['2.0 AT'], 'Fluid':['2.0 AT'], 'Elite':['2.0 AT'] },
+  'Santa Fe':   { 'Executive':['2.2D 4WD AT'], 'Elite':['2.2D 4WD AT'] },
+  'Palisade':   { 'Elite':['2.2D 4WD AT'], 'Calligraphy':['2.2D 4WD AT'] },
+  'Staria':     { 'Load':['2.2D MT','2.2D AT'], 'Wagon Premium':['2.2D AT'], 'Wagon Elite':['2.2D AT'] },
+  'Ioniq 5':    { 'Executive':['RWD 58kWh','AWD 72.6kWh'], 'Elite':['RWD 72.6kWh','AWD 72.6kWh'] },
+  'Ioniq 6':    { 'Executive':['RWD 77.4kWh'], 'Elite':['AWD 77.4kWh'] },
+};
+
+function populateTrims(modelId, trimId, varId) {
+  const model = document.getElementById(modelId).value;
+  const trimSel = document.getElementById(trimId);
+  const varSel  = document.getElementById(varId);
+  trimSel.innerHTML = '<option value="">— Select trim —</option>';
+  varSel.innerHTML  = '<option value="">— Select trim first —</option>';
+  if (H[model]) {
+    Object.keys(H[model]).forEach(t => {
+      const o = document.createElement('option');
+      o.value = t; o.textContent = t; trimSel.appendChild(o);
+    });
+  }
+}
+
+function populateVariants(modelId, trimId, varId) {
+  const model = document.getElementById(modelId).value;
+  const trim  = document.getElementById(trimId).value;
+  const varSel = document.getElementById(varId);
+  varSel.innerHTML = '<option value="">— Select variant —</option>';
+  if (H[model] && H[model][trim]) {
+    H[model][trim].forEach(v => {
+      const o = document.createElement('option');
+      o.value = v; o.textContent = v; varSel.appendChild(o);
+    });
+  }
+}
+
+function openEdit(btn) {
+  const d = btn.dataset;
+  document.getElementById('editVehicleForm').action = '/inventory/' + d.id + '/update';
+  document.getElementById('deleteVehicleForm').action = '/inventory/' + d.id + '/delete';
+  document.getElementById('e_vin').value       = d.vin;
+  document.getElementById('e_stock').value     = d.stock;
+  document.getElementById('e_year').value      = d.year;
+  document.getElementById('e_make').value      = d.make;
+  document.getElementById('e_model').value     = d.model;
+  populateTrims('e_model', 'e_trim', 'e_variant');
+  document.getElementById('e_trim').value      = d.trim;
+  populateVariants('e_model', 'e_trim', 'e_variant');
+  document.getElementById('e_variant').value   = d.variant;
+  document.getElementById('e_color_ext').value = d.colorExt;
+  document.getElementById('e_color_int').value = d.colorInt;
+  document.getElementById('e_mileage').value   = d.mileage;
+  document.getElementById('e_cost').value      = d.cost;
+  document.getElementById('e_rrp').value       = d.rrp;
+  document.getElementById('e_status').value    = d.status;
+  document.getElementById('e_notes').value     = d.notes;
+  new bootstrap.Modal(document.getElementById('modalEditVehicle')).show();
+}
+
+document.getElementById('btnDeleteVehicle').addEventListener('click', function() {
+  if (confirm('Remove this vehicle from inventory?')) {
+    document.getElementById('deleteVehicleForm').submit();
+  }
+});
+
+// ── Live search suggestions ────────────────────────────────────────────────
+const searchInput = document.getElementById('inventorySearch');
+const suggestBox  = document.getElementById('searchSuggestions');
+let searchTimer;
+
+function esc(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function highlight(text, q) {
+  if (!text || !q) return esc(text);
+  const re = new RegExp('(' + q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&') + ')', 'gi');
+  return esc(String(text)).replace(re, '<strong style="color:var(--accent)">$1</strong>');
+}
+
+function positionSuggest() {
+  const r = searchInput.getBoundingClientRect();
+  suggestBox.style.top   = (r.bottom + 4) + 'px';
+  suggestBox.style.left  = r.left + 'px';
+  suggestBox.style.width = r.width + 'px';
+}
+
+searchInput.addEventListener('input', function() {
+  clearTimeout(searchTimer);
+  const q = this.value.trim();
+  if (!q) { suggestBox.style.display = 'none'; return; }
+
+  searchTimer = setTimeout(() => {
+    fetch('/api/inventory/suggest?q=' + encodeURIComponent(q))
+      .then(r => r.json())
+      .then(data => {
+        if (!data.length) { suggestBox.style.display = 'none'; return; }
+        const sBgMap    = { available:'#d1fae5', reserved:'#fef3c7', sold:'#e2e8f0' };
+        const sColorMap = { available:'#065f46', reserved:'#92400e', sold:'#475569' };
+        suggestBox.innerHTML = data.map(v => {
+          const title  = [(v.year||''), (v.make||''), (v.model||'')].filter(Boolean).join(' ');
+          const detail = [v.trim, v.variant].filter(Boolean).join(' · ');
+          const sub    = [v.stock_number, v.vin ? v.vin.slice(0,10)+'…' : ''].filter(Boolean).join(' · ');
+          const bg     = sBgMap[v.status]    || '#e2e8f0';
+          const col    = sColorMap[v.status] || '#475569';
+          return `<div class="s-item px-3 py-2" data-value="${esc(v.model)}"
+                       style="cursor:pointer;border-bottom:1px solid #f1f5f9;">
+            <div style="font-size:.875rem;">
+              <span class="fw-semibold">${highlight(title, q)}</span>
+              ${detail ? `<span class="text-muted ms-2" style="font-size:.8rem;">${highlight(detail, q)}</span>` : ''}
+              <span class="ms-2" style="font-size:.65rem;padding:.1rem .4rem;border-radius:20px;background:${bg};color:${col};">${esc(v.status)}</span>
+            </div>
+            ${sub ? `<div class="text-muted" style="font-size:.75rem;">${sub}</div>` : ''}
+          </div>`;
+        }).join('');
+        positionSuggest();
+        suggestBox.style.display = 'block';
+      });
+  }, 180);
+});
+
+suggestBox.addEventListener('mouseover', e => {
+  const item = e.target.closest('.s-item');
+  if (item) item.style.background = '#f8fafc';
+});
+suggestBox.addEventListener('mouseout', e => {
+  const item = e.target.closest('.s-item');
+  if (item) item.style.background = '';
+});
+suggestBox.addEventListener('click', function(e) {
+  const item = e.target.closest('.s-item');
+  if (!item) return;
+  searchInput.value = item.dataset.value;
+  suggestBox.style.display = 'none';
+  searchInput.closest('form').submit();
+});
+
+document.addEventListener('click', function(e) {
+  if (!searchInput.contains(e.target) && !suggestBox.contains(e.target)) {
+    suggestBox.style.display = 'none';
+  }
+});
+searchInput.addEventListener('keydown', e => {
+  if (e.key === 'Escape') suggestBox.style.display = 'none';
+});
+</script>
+{% endblock %}

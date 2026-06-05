@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ quote.quote_number }} — {{ dealer_name }}</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 13px; color: #1e293b; background: #fff; }
+    .page { max-width: 800px; margin: 0 auto; padding: 2rem; }
+
+    /* Header */
+    .header { display: flex; justify-content: space-between; align-items: flex-start; padding-bottom: 1.25rem; border-bottom: 3px solid #002c5f; margin-bottom: 1.5rem; }
+    .dealer-name { font-size: 1.6rem; font-weight: 800; color: #002c5f; letter-spacing: -.02em; }
+    .dealer-sub { color: #64748b; font-size: .85rem; margin-top: .15rem; }
+    .quote-meta { text-align: right; }
+    .quote-number { font-size: 1.2rem; font-weight: 700; color: #002c5f; }
+    .quote-date { color: #64748b; font-size: .85rem; margin-top: .1rem; }
+    .status-badge { display: inline-block; padding: .2rem .65rem; border-radius: 20px; font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; margin-top: .35rem;
+      background: {% if quote.status == 'accepted' %}#d1fae5{% elif quote.status == 'sent' %}#fef3c7{% else %}#f1f5f9{% endif %};
+      color: {% if quote.status == 'accepted' %}#065f46{% elif quote.status == 'sent' %}#92400e{% else %}#475569{% endif %};
+    }
+
+    /* Sections */
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; margin-bottom: 1.25rem; }
+    .section { margin-bottom: 1.25rem; }
+    .section-title { font-size: .68rem; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; color: #94a3b8; margin-bottom: .6rem; }
+    .info-box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: .875rem 1rem; }
+    .info-row { display: flex; justify-content: space-between; padding: .2rem 0; font-size: .875rem; }
+    .info-row .label { color: #64748b; }
+    .info-row .value { font-weight: 600; }
+    .vehicle-name { font-size: 1.1rem; font-weight: 700; color: #002c5f; margin-bottom: .35rem; }
+
+    /* Pricing table */
+    .pricing-table { width: 100%; border-collapse: collapse; margin-bottom: 1.25rem; }
+    .pricing-table td { padding: .45rem .75rem; }
+    .pricing-table tr { border-bottom: 1px solid #f1f5f9; }
+    .pricing-table .label { color: #64748b; }
+    .pricing-table .amount { text-align: right; font-weight: 600; }
+    .pricing-table .subtotal { background: #f8fafc; }
+    .pricing-table .total-row td { border-top: 2px solid #002c5f; font-size: 1rem; font-weight: 700; color: #002c5f; padding-top: .65rem; }
+
+    /* Finance box */
+    .finance-box { background: #002c5f; color: #fff; border-radius: 10px; padding: 1.1rem 1.25rem; margin-bottom: 1.25rem; display: grid; grid-template-columns: repeat(4, 1fr); gap: .75rem; }
+    .finance-item .fi-label { font-size: .68rem; color: rgba(255,255,255,.55); text-transform: uppercase; letter-spacing: .07em; margin-bottom: .15rem; }
+    .finance-item .fi-value { font-size: 1rem; font-weight: 700; }
+    .finance-item.highlight .fi-value { font-size: 1.35rem; color: #34d399; }
+
+    /* Notes */
+    .notes-box { background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; padding: .875rem 1rem; font-size: .875rem; line-height: 1.5; margin-bottom: 1.25rem; }
+
+    /* Signatures */
+    .signatures { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-top: 2.5rem; padding-top: 1.5rem; border-top: 1px solid #e2e8f0; }
+    .sig-line { border-bottom: 1px solid #0f172a; margin-bottom: .4rem; height: 2.5rem; }
+    .sig-label { font-size: .78rem; color: #64748b; }
+
+    /* Footer */
+    .footer { margin-top: 2rem; padding-top: .75rem; border-top: 1px solid #e2e8f0; font-size: .75rem; color: #94a3b8; text-align: center; }
+
+    /* Print controls */
+    .print-bar { background: #0f172a; color: #fff; padding: .75rem 2rem; display: flex; align-items: center; justify-content: space-between; }
+    .print-bar span { font-size: .85rem; }
+    .btn-print { background: #3b82f6; color: #fff; border: none; padding: .45rem 1.25rem; border-radius: 6px; cursor: pointer; font-size: .875rem; font-weight: 600; }
+    .btn-close-tab { background: transparent; color: rgba(255,255,255,.6); border: 1px solid rgba(255,255,255,.2); padding: .45rem 1rem; border-radius: 6px; cursor: pointer; font-size: .875rem; }
+
+    @media print {
+      .print-bar { display: none !important; }
+      body { font-size: 12px; }
+      .page { padding: 1rem; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Print bar (hidden when printing) -->
+<div class="print-bar">
+  <span>Quote {{ quote.quote_number }} — ready to print or save as PDF</span>
+  <div style="display:flex;gap:.5rem;">
+    <button class="btn-close-tab" onclick="window.close()">Close</button>
+    <button class="btn-print" onclick="window.print()">🖨 Print / Save PDF</button>
+  </div>
+</div>
+
+<div class="page">
+
+  <!-- Header -->
+  <div class="header">
+    <div>
+      <div class="dealer-name">{{ dealer_name }}</div>
+      <div class="dealer-sub">Hyundai Authorised Dealer</div>
+    </div>
+    <div class="quote-meta">
+      <div class="quote-number">{{ quote.quote_number }}</div>
+      <div class="quote-date">Date: {{ print_date }}</div>
+      {% if quote.expires_at and quote.expires_at|length >= 10 %}
+      <div class="quote-date">Valid until: {{ quote.expires_at[:10] }}</div>
+      {% endif %}
+      <div><span class="status-badge">{{ quote.status.title() }}</span></div>
+    </div>
+  </div>
+
+  <!-- Customer + Vehicle -->
+  <div class="two-col">
+    <div>
+      <div class="section-title">Customer</div>
+      <div class="info-box">
+        <div style="font-size:1rem;font-weight:700;margin-bottom:.35rem;">{{ quote.lead_name or '—' }}</div>
+        {% if quote.lead_email %}<div class="info-row"><span class="label">Email</span><span class="value">{{ quote.lead_email }}</span></div>{% endif %}
+        {% if quote.lead_phone %}<div class="info-row"><span class="label">Phone</span><span class="value">{{ quote.lead_phone }}</span></div>{% endif %}
+      </div>
+    </div>
+    <div>
+      <div class="section-title">Vehicle</div>
+      <div class="info-box">
+        <div class="vehicle-name">{{ quote.v_year or '' }} {{ quote.v_make or '' }} {{ quote.v_model or '—' }}</div>
+        {% if quote.v_trim %}<div class="info-row"><span class="label">Trim</span><span class="value">{{ quote.v_trim }}{% if quote.v_variant %} · {{ quote.v_variant }}{% endif %}</span></div>{% endif %}
+        {% if quote.v_stock %}<div class="info-row"><span class="label">Stock #</span><span class="value">{{ quote.v_stock }}</span></div>{% endif %}
+        {% if quote.v_vin %}<div class="info-row"><span class="label">VIN</span><span class="value" style="font-family:monospace;font-size:.82rem;">{{ quote.v_vin }}</span></div>{% endif %}
+        {% if quote.v_color_ext %}<div class="info-row"><span class="label">Colour</span><span class="value">{{ quote.v_color_ext }}{% if quote.v_color_int %} / {{ quote.v_color_int }}{% endif %}</span></div>{% endif %}
+        {% if quote.v_mileage %}<div class="info-row"><span class="label">Mileage</span><span class="value">{{ "{:,}".format(quote.v_mileage) }} km</span></div>{% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Pricing -->
+  <div class="section-title">Pricing</div>
+  <table class="pricing-table">
+    <tr>
+      <td class="label">Vehicle Selling Price</td>
+      <td class="amount">R {{ "{:,.2f}".format(quote.selling_price or 0) }}</td>
+    </tr>
+    {% if quote.discount and quote.discount > 0 %}
+    <tr>
+      <td class="label">Less: Discount</td>
+      <td class="amount" style="color:#dc2626;">— R {{ "{:,.2f}".format(quote.discount) }}</td>
+    </tr>
+    {% endif %}
+    {% if quote.accessories_price and quote.accessories_price > 0 %}
+    <tr>
+      <td class="label">Accessories</td>
+      <td class="amount">R {{ "{:,.2f}".format(quote.accessories_price) }}</td>
+    </tr>
+    {% endif %}
+    <tr class="total-row">
+      <td>Total Vehicle Price</td>
+      <td class="amount">R {{ "{:,.2f}".format((quote.selling_price or 0) - (quote.discount or 0) + (quote.accessories_price or 0)) }}</td>
+    </tr>
+    {% if quote.trade_in_value and quote.trade_in_value > 0 %}
+    <tr class="subtotal">
+      <td class="label">Trade-In Allowance{% if quote.trade_in_description %} ({{ quote.trade_in_description }}){% endif %}</td>
+      <td class="amount" style="color:#16a34a;">— R {{ "{:,.2f}".format(quote.trade_in_value) }}</td>
+    </tr>
+    {% endif %}
+    {% if quote.deposit and quote.deposit > 0 %}
+    <tr class="subtotal">
+      <td class="label">Deposit</td>
+      <td class="amount" style="color:#16a34a;">— R {{ "{:,.2f}".format(quote.deposit) }}</td>
+    </tr>
+    {% endif %}
+  </table>
+
+  <!-- Finance Terms -->
+  {% if quote.finance_amount and quote.finance_amount > 0 %}
+  <div class="section-title">Finance Terms</div>
+  <div class="finance-box">
+    <div class="finance-item">
+      <div class="fi-label">Amount Financed</div>
+      <div class="fi-value">R {{ "{:,.0f}".format(quote.finance_amount) }}</div>
+    </div>
+    <div class="finance-item">
+      <div class="fi-label">Interest Rate</div>
+      <div class="fi-value">{{ quote.interest_rate or 0 }}% p.a.</div>
+    </div>
+    <div class="finance-item">
+      <div class="fi-label">Term</div>
+      <div class="fi-value">{{ quote.term_months or 0 }} months</div>
+    </div>
+    <div class="finance-item highlight">
+      <div class="fi-label">Monthly Instalment</div>
+      <div class="fi-value">R {{ "{:,.0f}".format(quote.monthly_payment or 0) }}/pm</div>
+    </div>
+    {% if quote.balloon_payment and quote.balloon_payment > 0 %}
+    <div class="finance-item" style="grid-column:span 4;">
+      <div class="fi-label">Balloon / Residual Payment at End of Term</div>
+      <div class="fi-value">R {{ "{:,.0f}".format(quote.balloon_payment) }}</div>
+    </div>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  <!-- Notes -->
+  {% if quote.notes %}
+  <div class="section-title">Notes</div>
+  <div class="notes-box">{{ quote.notes }}</div>
+  {% endif %}
+
+  <!-- Signatures -->
+  <div class="signatures">
+    <div>
+      <div class="sig-line"></div>
+      <div class="sig-label">Customer Signature &amp; Date</div>
+    </div>
+    <div>
+      <div class="sig-line"></div>
+      <div class="sig-label">Sales Consultant Signature &amp; Date</div>
+    </div>
+  </div>
+
+  <div class="footer">
+    This quote is valid for 7 days from the date of issue unless otherwise stated. Finance terms are subject to credit approval. Prices are inclusive of VAT. E&amp;OE.
+  </div>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}LeadFlow CRM{% endblock %}</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+  <style>
+    :root {
+      --sidebar-w: 256px;
+      --sidebar-bg: #0f172a;
+      --accent: #3b82f6;
+    }
+    body { background: #f1f5f9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+
+    /* Sidebar */
+    #sidebar {
+      width: var(--sidebar-w); min-height: 100vh;
+      background: var(--sidebar-bg); position: fixed; top: 0; left: 0; z-index: 100;
+    }
+    .sb-brand {
+      padding: 1.25rem 1.5rem; border-bottom: 1px solid rgba(255,255,255,.1);
+    }
+    .sb-brand h5 { color: #fff; margin: 0; font-weight: 700; font-size: 1rem; }
+    .sb-brand small { color: var(--accent); font-size: .7rem; }
+    .sb-section { color: rgba(255,255,255,.35); font-size: .65rem; font-weight: 700;
+      text-transform: uppercase; letter-spacing: .1em; padding: .75rem 1.5rem .2rem; }
+    .sb-link {
+      display: flex; align-items: center; gap: .65rem;
+      color: rgba(255,255,255,.65); padding: .55rem 1.5rem;
+      text-decoration: none; font-size: .875rem; transition: .15s;
+    }
+    .sb-link:hover, .sb-link.active { color: #fff; background: rgba(255,255,255,.07); }
+    .sb-link.active { border-left: 3px solid var(--accent); }
+    .sb-link i { width: 18px; font-size: .95rem; }
+
+    /* Main */
+    #main { margin-left: var(--sidebar-w); min-height: 100vh; }
+    .topbar {
+      background: #fff; border-bottom: 1px solid #e2e8f0;
+      padding: .65rem 1.5rem; display: flex; align-items: center; justify-content: space-between;
+    }
+    .topbar h6 { margin: 0; font-weight: 600; color: #0f172a; }
+    .page-body { padding: 1.5rem; }
+
+    /* Cards */
+    .kpi-card {
+      background: #fff; border-radius: 12px; padding: 1.25rem;
+      border: 1px solid #e2e8f0;
+    }
+    .kpi-icon { width: 44px; height: 44px; border-radius: 10px;
+      display: flex; align-items: center; justify-content: center; font-size: 1.1rem; }
+    .kpi-val { font-size: 1.75rem; font-weight: 700; color: #0f172a; line-height: 1.1; }
+    .kpi-lbl { color: #64748b; font-size: .8rem; margin-top: .15rem; }
+
+    /* Panel */
+    .panel { background: #fff; border-radius: 12px; border: 1px solid #e2e8f0; overflow: hidden; }
+    .panel-head {
+      padding: .875rem 1.25rem; border-bottom: 1px solid #e2e8f0;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .panel-head h6 { margin: 0; font-weight: 600; color: #0f172a; }
+    .panel table { margin: 0; }
+    .panel table thead th {
+      background: #f8fafc; border-bottom: 1px solid #e2e8f0;
+      color: #64748b; font-size: .72rem; font-weight: 700;
+      text-transform: uppercase; letter-spacing: .05em; padding: .65rem 1rem;
+    }
+    .panel table tbody td {
+      padding: .8rem 1rem; vertical-align: middle;
+      border-color: #f1f5f9; color: #334155; font-size: .875rem;
+    }
+    .panel table tbody tr:hover { background: #f8fafc; }
+
+    /* Badges */
+    .pill { padding: .2rem .55rem; border-radius: 20px; font-size: .72rem; font-weight: 600; }
+    .s-new        { background:#dbeafe; color:#1d4ed8; }
+    .s-contacted  { background:#fef3c7; color:#92400e; }
+    .s-qualified  { background:#d1fae5; color:#065f46; }
+    .s-proposal   { background:#ede9fe; color:#5b21b6; }
+    .s-closed_won { background:#d1fae5; color:#065f46; }
+    .s-closed_lost{ background:#fee2e2; color:#991b1b; }
+    .p-prospect   { background:#e0f2fe; color:#0369a1; }
+    .p-lead       { background:#fef3c7; color:#92400e; }
+    .p-opportunity{ background:#ede9fe; color:#5b21b6; }
+    .p-customer   { background:#d1fae5; color:#065f46; }
+  </style>
+</head>
+<body>
+
+<nav id="sidebar">
+  <div class="sb-brand">
+    <h5><i class="bi bi-bullseye me-2" style="color:var(--accent)"></i>LeadFlow CRM</h5>
+    <small>Lead Tracker &amp; Outreach</small>
+  </div>
+  <div class="mt-1">
+    <div class="sb-section">Main</div>
+    <a href="{{ url_for('dashboard') }}" class="sb-link {{ 'active' if request.endpoint=='dashboard' }}">
+      <i class="bi bi-grid-1x2"></i> Dashboard
+    </a>
+    <a href="{{ url_for('leads') }}" class="sb-link {{ 'active' if request.endpoint in ['leads','lead_detail'] }}">
+      <i class="bi bi-people"></i> Leads
+    </a>
+    <div class="sb-section">Dealership</div>
+    <a href="{{ url_for('inventory') }}" class="sb-link {{ 'active' if request.endpoint=='inventory' }}">
+      <i class="bi bi-car-front"></i> Inventory
+    </a>
+    <a href="{{ url_for('quotes') }}" class="sb-link {{ 'active' if request.endpoint in ['quotes','quote_detail'] }}">
+      <i class="bi bi-file-text"></i> Quotes
+    </a>
+    <a href="{{ url_for('test_drives') }}" class="sb-link {{ 'active' if request.endpoint=='test_drives' }}">
+      <i class="bi bi-key"></i> Test Drives
+    </a>
+    <a href="{{ url_for('finance') }}" class="sb-link {{ 'active' if request.endpoint=='finance' }}">
+      <i class="bi bi-bank"></i> Finance
+    </a>
+    <div class="sb-section">Outreach</div>
+    <a href="{{ url_for('outreach') }}" class="sb-link {{ 'active' if request.endpoint=='outreach' }}">
+      <i class="bi bi-send"></i> Outreach Log
+    </a>
+    <a href="{{ url_for('email_templates') }}" class="sb-link {{ 'active' if request.endpoint=='email_templates' }}">
+      <i class="bi bi-envelope-paper"></i> Email Templates
+    </a>
+    <div class="sb-section">System</div>
+    <a href="{{ url_for('settings') }}" class="sb-link {{ 'active' if request.endpoint=='settings' }}">
+      <i class="bi bi-gear"></i> Settings
+    </a>
+  </div>
+</nav>
+
+<div id="main">
+  <div class="topbar">
+    <h6>{% block page_title %}Dashboard{% endblock %}</h6>
+    <div class="d-flex align-items-center gap-3">
+      <span class="text-muted" style="font-size:.8rem;">
+        <i class="bi bi-circle-fill text-success me-1" style="font-size:.45rem;"></i>
+        Sequence Engine Active
+      </span>
+      <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modalAddLead">
+        <i class="bi bi-plus-lg me-1"></i>Add Lead
+      </button>
+    </div>
+  </div>
+
+  <div class="page-body">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for cat, msg in messages %}
+          <div class="alert alert-{{ 'success' if cat=='success' else 'danger' if cat=='error' else 'info' }} alert-dismissible fade show py-2 mb-3" role="alert">
+            {{ msg }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+          </div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+    {% block content %}{% endblock %}
+  </div>
+</div>
+
+<!-- Add Lead Modal -->
+<div class="modal fade" id="modalAddLead" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Add New Lead</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form action="{{ url_for('add_lead') }}" method="POST">
+        <div class="modal-body">
+          <div class="row g-3">
+            <div class="col-12">
+              <label class="form-label fw-semibold">Full Name *</label>
+              <input type="text" name="name" class="form-control" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Email *</label>
+              <input type="email" name="email" class="form-control" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Phone</label>
+              <input type="text" name="phone" class="form-control">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Company</label>
+              <input type="text" name="company" class="form-control">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Job Title</label>
+              <input type="text" name="title" class="form-control">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Source</label>
+              <select name="source" class="form-select">
+                <option value="manual">Manual</option>
+                <option value="website">Website</option>
+                <option value="referral">Referral</option>
+                <option value="linkedin">LinkedIn</option>
+                <option value="cold_outreach">Cold Outreach</option>
+                <option value="event">Event</option>
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Pipeline Value ($)</label>
+              <input type="number" name="pipeline_value" class="form-control" value="0" min="0">
+            </div>
+            <div class="col-12">
+              <label class="form-label fw-semibold">Notes</label>
+              <textarea name="notes" class="form-control" rows="2"></textarea>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary">Add Lead</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

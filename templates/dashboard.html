@@ -1,0 +1,135 @@
+{% extends 'base.html' %}
+{% block title %}Dashboard — LeadFlow CRM{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+
+{% block content %}
+<!-- KPI Cards -->
+<div class="row g-3 mb-4">
+  <div class="col-sm-6 col-xl-3">
+    <div class="kpi-card">
+      <div class="d-flex justify-content-between align-items-start mb-3">
+        <div class="kpi-icon" style="background:#dbeafe;"><i class="bi bi-people" style="color:#1d4ed8;"></i></div>
+        <span class="pill p-prospect">Total</span>
+      </div>
+      <div class="kpi-val">{{ total_leads }}</div>
+      <div class="kpi-lbl">Total Leads</div>
+    </div>
+  </div>
+  <div class="col-sm-6 col-xl-3">
+    <div class="kpi-card">
+      <div class="d-flex justify-content-between align-items-start mb-3">
+        <div class="kpi-icon" style="background:#d1fae5;"><i class="bi bi-send" style="color:#065f46;"></i></div>
+        <span class="pill s-qualified">Active</span>
+      </div>
+      <div class="kpi-val">{{ active_sequences }}</div>
+      <div class="kpi-lbl">Active Sequences</div>
+    </div>
+  </div>
+  <div class="col-sm-6 col-xl-3">
+    <div class="kpi-card">
+      <div class="d-flex justify-content-between align-items-start mb-3">
+        <div class="kpi-icon" style="background:#ede9fe;"><i class="bi bi-envelope-check" style="color:#5b21b6;"></i></div>
+        <span class="text-muted" style="font-size:.75rem;">All time</span>
+      </div>
+      <div class="kpi-val">{{ emails_sent }}</div>
+      <div class="kpi-lbl">Emails Sent</div>
+    </div>
+  </div>
+  <div class="col-sm-6 col-xl-3">
+    <div class="kpi-card">
+      <div class="d-flex justify-content-between align-items-start mb-3">
+        <div class="kpi-icon" style="background:#fef3c7;"><i class="bi bi-calendar-event" style="color:#92400e;"></i></div>
+        <span class="text-muted" style="font-size:.75rem;">Pending</span>
+      </div>
+      <div class="kpi-val">{{ upcoming_emails|length }}</div>
+      <div class="kpi-lbl">Scheduled Emails</div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3 mb-3">
+  <!-- Recent Leads -->
+  <div class="col-xl-8">
+    <div class="panel">
+      <div class="panel-head">
+        <h6>Recent Leads</h6>
+        <a href="{{ url_for('leads') }}" class="btn btn-sm btn-light">View All</a>
+      </div>
+      <table class="table mb-0">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Company</th>
+            <th>Status</th>
+            <th>Stage</th>
+            <th>Sequence</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for lead in recent_leads %}
+          <tr>
+            <td>
+              <a href="{{ url_for('lead_detail', lead_id=lead.id) }}" class="fw-semibold text-decoration-none text-dark">{{ lead.name }}</a>
+              <div class="text-muted" style="font-size:.78rem;">{{ lead.email }}</div>
+            </td>
+            <td>{{ lead.company or '—' }}</td>
+            <td><span class="pill s-{{ lead.status }}">{{ lead.status.replace('_',' ').title() }}</span></td>
+            <td><span class="pill p-{{ lead.pipeline_stage }}">{{ lead.pipeline_stage.title() }}</span></td>
+            <td>
+              {% if lead.sequence_active %}
+                <span class="badge bg-success" style="font-size:.7rem;">Step {{ lead.sequence_step }}</span>
+              {% else %}<span class="text-muted">—</span>{% endif %}
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="5" class="text-center text-muted py-4">No leads yet — add your first lead above!</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Upcoming Emails -->
+  <div class="col-xl-4">
+    <div class="panel h-100">
+      <div class="panel-head"><h6>Scheduled Emails</h6></div>
+      <div class="p-3">
+        {% for e in upcoming_emails %}
+        <div class="border rounded p-2 mb-2">
+          <div class="fw-semibold" style="font-size:.85rem;">{{ e.name }}</div>
+          <div class="text-muted" style="font-size:.75rem;">{{ e.template_name }}</div>
+          <div class="text-primary mt-1" style="font-size:.75rem;">
+            <i class="bi bi-clock me-1"></i>{{ e.scheduled_for[:16].replace('T',' ') }}
+          </div>
+        </div>
+        {% else %}
+        <div class="text-center text-muted py-4">
+          <i class="bi bi-check-circle fs-2 d-block mb-1"></i>
+          <span style="font-size:.85rem;">No emails in queue</span>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Pipeline -->
+{% if pipeline_stages %}
+<div class="panel">
+  <div class="panel-head"><h6>Pipeline Overview</h6></div>
+  <div class="p-3">
+    <div class="row g-3">
+      {% for s in pipeline_stages %}
+      <div class="col">
+        <div class="border rounded p-3 text-center">
+          <div class="fw-bold fs-4">{{ s.count }}</div>
+          <div class="text-muted" style="font-size:.8rem;">{{ s.pipeline_stage.title() }}</div>
+          {% if s.total_value %}<div class="text-success" style="font-size:.8rem;">${{ "%.0f"|format(s.total_value) }}</div>{% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

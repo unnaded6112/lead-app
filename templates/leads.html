@@ -1,0 +1,98 @@
+{% extends 'base.html' %}
+{% block title %}Leads — LeadFlow CRM{% endblock %}
+{% block page_title %}Leads{% endblock %}
+
+{% block content %}
+<!-- Filters -->
+<div class="panel mb-3">
+  <div class="p-3">
+    <form method="GET" class="row g-2 align-items-end">
+      <div class="col-md-5">
+        <input type="text" name="search" class="form-control form-control-sm" placeholder="Search by name, email, or company…" value="{{ search }}">
+      </div>
+      <div class="col-md-2">
+        <select name="status" class="form-select form-select-sm">
+          <option value="">All Statuses</option>
+          {% for val, lbl in [('new','New'),('contacted','Contacted'),('qualified','Qualified'),('proposal','Proposal'),('closed_won','Closed Won'),('closed_lost','Closed Lost')] %}
+          <option value="{{ val }}" {{ 'selected' if status==val }}>{{ lbl }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-2">
+        <select name="stage" class="form-select form-select-sm">
+          <option value="">All Stages</option>
+          {% for val, lbl in [('prospect','Prospect'),('lead','Lead'),('opportunity','Opportunity'),('customer','Customer')] %}
+          <option value="{{ val }}" {{ 'selected' if stage==val }}>{{ lbl }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-3 d-flex gap-2">
+        <button type="submit" class="btn btn-primary btn-sm flex-grow-1">Filter</button>
+        <a href="{{ url_for('leads') }}" class="btn btn-light btn-sm">Clear</a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Table -->
+<div class="panel">
+  <div class="panel-head">
+    <h6>{{ leads|length }} Lead{{ 's' if leads|length != 1 }}</h6>
+    <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modalAddLead">
+      <i class="bi bi-plus-lg me-1"></i>Add Lead
+    </button>
+  </div>
+  <table class="table mb-0">
+    <thead>
+      <tr>
+        <th>Name / Contact</th>
+        <th>Company</th>
+        <th>Status</th>
+        <th>Stage</th>
+        <th>Value</th>
+        <th>Sequence</th>
+        <th>Added</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for lead in leads %}
+      <tr>
+        <td>
+          <a href="{{ url_for('lead_detail', lead_id=lead.id) }}" class="fw-semibold text-decoration-none text-dark">{{ lead.name }}</a>
+          <div class="text-muted" style="font-size:.78rem;">{{ lead.email }}</div>
+          {% if lead.phone %}<div class="text-muted" style="font-size:.75rem;">{{ lead.phone }}</div>{% endif %}
+        </td>
+        <td>
+          <div>{{ lead.company or '—' }}</div>
+          {% if lead.title %}<div class="text-muted" style="font-size:.78rem;">{{ lead.title }}</div>{% endif %}
+        </td>
+        <td><span class="pill s-{{ lead.status }}">{{ lead.status.replace('_',' ').title() }}</span></td>
+        <td><span class="pill p-{{ lead.pipeline_stage }}">{{ lead.pipeline_stage.title() }}</span></td>
+        <td>
+          {% if lead.pipeline_value %}<span class="fw-semibold">${{ "%.0f"|format(lead.pipeline_value) }}</span>{% else %}—{% endif %}
+        </td>
+        <td>
+          {% if lead.sequence_active %}
+            <span class="badge bg-success" style="font-size:.7rem;">Step {{ lead.sequence_step }}</span>
+          {% else %}<span class="text-muted">—</span>{% endif %}
+        </td>
+        <td class="text-muted" style="font-size:.8rem;">{{ lead.created_at[:10] }}</td>
+        <td>
+          <a href="{{ url_for('lead_detail', lead_id=lead.id) }}" class="btn btn-sm btn-light">
+            <i class="bi bi-eye"></i>
+          </a>
+        </td>
+      </tr>
+      {% else %}
+      <tr>
+        <td colspan="8" class="text-center text-muted py-5">
+          <i class="bi bi-inbox fs-2 d-block mb-2"></i>
+          No leads found. Add your first lead!
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

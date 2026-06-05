@@ -1,0 +1,444 @@
+{% extends 'base.html' %}
+{% block title %}{{ quote.quote_number }} — LeadFlow CRM{% endblock %}
+{% block page_title %}Quote Detail{% endblock %}
+
+{% block content %}
+<style>
+  .section-card { background:#fff; border-radius:12px; border:1px solid #e2e8f0; padding:1.25rem; margin-bottom:1rem; }
+  .section-title { font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:#64748b; margin-bottom:1rem; }
+  .internal-section { background:#fff8f0; border:1px solid #fed7aa; border-radius:12px; padding:1.25rem; margin-bottom:1rem; }
+  .internal-badge { background:#ea580c; color:#fff; font-size:.65rem; font-weight:700; padding:.15rem .45rem; border-radius:4px; text-transform:uppercase; letter-spacing:.05em; }
+  .summary-panel { background:#0f172a; border-radius:12px; padding:1.25rem; color:#fff; position:sticky; top:1.5rem; }
+  .summary-row { display:flex; justify-content:space-between; align-items:center; padding:.35rem 0; border-bottom:1px solid rgba(255,255,255,.08); font-size:.875rem; }
+  .summary-row:last-child { border-bottom:none; }
+  .summary-row.total { font-size:1rem; font-weight:700; padding-top:.6rem; }
+  .summary-row.monthly { font-size:1.4rem; font-weight:800; color:#34d399; padding-top:.75rem; }
+  .calc-badge { background:rgba(59,130,246,.2); color:#93c5fd; font-size:.7rem; padding:.1rem .35rem; border-radius:4px; }
+  .status-bar { background:#fff; border-radius:12px; border:1px solid #e2e8f0; padding:1rem 1.25rem; margin-bottom:1rem; display:flex; align-items:center; gap:1rem; flex-wrap:wrap; }
+</style>
+
+<!-- Status Bar -->
+<div class="status-bar">
+  <div>
+    <span class="fw-bold" style="font-size:1.1rem; color:#0f172a;">{{ quote.quote_number }}</span>
+    &nbsp;
+    {% if quote.status == 'draft' %}<span class="pill" style="background:#f1f5f9;color:#475569">Draft</span>
+    {% elif quote.status == 'sent' %}<span class="pill" style="background:#fef3c7;color:#92400e">Sent</span>
+    {% elif quote.status == 'accepted' %}<span class="pill" style="background:#d1fae5;color:#065f46">Accepted</span>
+    {% elif quote.status == 'declined' %}<span class="pill" style="background:#fee2e2;color:#991b1b">Declined</span>
+    {% else %}<span class="pill" style="background:#e2e8f0;color:#475569">Expired</span>{% endif %}
+  </div>
+  <div class="text-muted" style="font-size:.82rem;">Created {{ quote.created_at[:10] }}{% if quote.expires_at and quote.expires_at[:10] %} · Expires {{ quote.expires_at[:10] }}{% endif %}</div>
+  <div class="ms-auto d-flex gap-2 flex-wrap">
+    {% if quote.status == 'draft' %}
+    <form action="{{ url_for('update_quote_status', qid=quote.id) }}" method="POST" class="d-inline">
+      <input type="hidden" name="status" value="sent">
+      <button class="btn btn-warning btn-sm"><i class="bi bi-send me-1"></i>Mark as Sent</button>
+    </form>
+    {% endif %}
+    {% if quote.status in ('sent', 'draft') %}
+    <form action="{{ url_for('update_quote_status', qid=quote.id) }}" method="POST" class="d-inline">
+      <input type="hidden" name="status" value="accepted">
+      <button class="btn btn-success btn-sm"><i class="bi bi-check-circle me-1"></i>Accept</button>
+    </form>
+    <form action="{{ url_for('update_quote_status', qid=quote.id) }}" method="POST" class="d-inline">
+      <input type="hidden" name="status" value="declined">
+      <button class="btn btn-outline-danger btn-sm"><i class="bi bi-x-circle me-1"></i>Decline</button>
+    </form>
+    {% endif %}
+    {% if quote.status != 'expired' and quote.status != 'accepted' %}
+    <form action="{{ url_for('update_quote_status', qid=quote.id) }}" method="POST" class="d-inline">
+      <input type="hidden" name="status" value="expired">
+      <button class="btn btn-outline-secondary btn-sm">Mark Expired</button>
+    </form>
+    {% endif %}
+    <a href="{{ url_for('print_quote', qid=quote.id) }}" target="_blank" class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-printer me-1"></i>Print / PDF
+    </a>
+    <form action="{{ url_for('delete_quote', qid=quote.id) }}" method="POST" class="d-inline"
+          onsubmit="return confirm('Delete this quote? This cannot be undone.')">
+      <button class="btn btn-outline-danger btn-sm"><i class="bi bi-trash"></i></button>
+    </form>
+  </div>
+</div>
+
+<form action="{{ url_for('update_quote', qid=quote.id) }}" method="POST" id="quoteForm">
+<div class="row g-3">
+
+  <!-- ── Left column ── -->
+  <div class="col-lg-8">
+
+    <!-- Customer & Vehicle -->
+    <div class="section-card">
+      <div class="section-title">Customer &amp; Vehicle</div>
+      <div class="row g-3">
+        <div class="col-md-6">
+          <label class="form-label fw-semibold">Customer</label>
+          <select name="lead_id" class="form-select" id="leadSelect">
+            <option value="">— No customer —</option>
+            {% for l in all_leads %}
+            <option value="{{ l.id }}" {{ 'selected' if quote.lead_id == l.id }}>{{ l.name }} ({{ l.email }})</option>
+            {% endfor %}
+          </select>
+          {% if quote.lead_name %}
+          <div class="mt-1" style="font-size:.8rem; color:#64748b;">
+            <i class="bi bi-telephone me-1"></i>{{ quote.lead_phone or 'No phone' }}
+            &nbsp;·&nbsp;<a href="{{ url_for('lead_detail', lead_id=quote.lead_id) }}" class="text-decoration-none">View lead</a>
+          </div>
+          {% endif %}
+        </div>
+        <div class="col-md-6">
+          <label class="form-label fw-semibold">Quote Expiry Date</label>
+          <input type="date" name="expires_at" class="form-control"
+                 value="{{ quote.expires_at[:10] if quote.expires_at and quote.expires_at|length >= 10 else '' }}">
+        </div>
+        <div class="col-12">
+          <label class="form-label fw-semibold">Vehicle</label>
+          <select name="vehicle_id" class="form-select" id="vehicleSelect" onchange="loadVehicleData(this.value)">
+            <option value="">— No vehicle selected —</option>
+            {% for v in all_vehicles %}
+            <option value="{{ v.id }}" {{ 'selected' if quote.vehicle_id == v.id }}>
+              {{ v.year }} {{ v.make }} {{ v.model }} {{ v.trim }}
+              — Stock: {{ v.stock_number or 'N/A' }}
+              {% if v.rrp %} | RRP: R {{ "{:,.0f}".format(v.rrp) }}{% endif %}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+
+      {% if quote.v_model %}
+      <!-- Vehicle detail card -->
+      <div class="mt-3 p-3 rounded" style="background:#f8fafc; border:1px solid #e2e8f0;">
+        <div class="row g-2" style="font-size:.83rem;">
+          <div class="col-md-3"><span class="text-muted">Stock #</span><br><strong>{{ quote.v_stock or '—' }}</strong></div>
+          <div class="col-md-3"><span class="text-muted">VIN</span><br><strong style="font-family:monospace;">{{ quote.v_vin or '—' }}</strong></div>
+          <div class="col-md-3"><span class="text-muted">Variant</span><br><strong>{{ quote.v_variant or '—' }}</strong></div>
+          <div class="col-md-3"><span class="text-muted">Mileage</span><br><strong>{{ "{:,}".format(quote.v_mileage) if quote.v_mileage else '0' }} km</strong></div>
+          <div class="col-md-3"><span class="text-muted">Ext. Colour</span><br><strong>{{ quote.v_color_ext or '—' }}</strong></div>
+          <div class="col-md-3"><span class="text-muted">Int. Colour</span><br><strong>{{ quote.v_color_int or '—' }}</strong></div>
+          <div class="col-md-3"><span class="text-muted">Manufacturer RRP</span><br><strong class="text-primary">R {{ "{:,.0f}".format(quote.v_rrp) if quote.v_rrp else '—' }}</strong></div>
+        </div>
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- Pricing -->
+    <div class="section-card">
+      <div class="section-title">Pricing</div>
+      <div class="row g-3">
+        <div class="col-md-4">
+          <label class="form-label fw-semibold">Selling Price (R)</label>
+          <input type="number" name="selling_price" id="selling_price" class="form-control"
+                 value="{{ quote.selling_price or 0 }}" step="0.01" min="0" oninput="recalc()">
+        </div>
+        <div class="col-md-4">
+          <label class="form-label fw-semibold">Discount (R)</label>
+          <input type="number" name="discount" id="discount" class="form-control"
+                 value="{{ quote.discount or 0 }}" step="0.01" min="0" oninput="recalc()">
+        </div>
+        <div class="col-md-4">
+          <label class="form-label fw-semibold">Net Vehicle Price</label>
+          <div class="form-control-plaintext fw-bold text-primary" id="net_price_display" style="padding-top:.5rem;">
+            R 0
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Internal Margins -->
+    <div class="internal-section">
+      <div class="d-flex align-items-center gap-2 mb-3">
+        <div class="section-title mb-0">Internal Margins</div>
+        <span class="internal-badge"><i class="bi bi-lock-fill me-1"></i>Internal Only</span>
+      </div>
+      <div class="row g-3">
+        <div class="col-md-4">
+          <label class="form-label fw-semibold">Vehicle Cost Price (R)</label>
+          <input type="number" name="cost_price" id="cost_price" class="form-control"
+                 value="{{ quote.cost_price or 0 }}" step="0.01" min="0" oninput="recalc()"
+                 style="border-color:#fed7aa; background:#fff8f0;">
+        </div>
+        <div class="col-md-4">
+          <label class="form-label fw-semibold">Accessories Cost (R)</label>
+          <input type="number" name="accessories_cost" id="accessories_cost" class="form-control"
+                 value="{{ quote.accessories_cost or 0 }}" step="0.01" min="0" oninput="recalc()"
+                 style="border-color:#fed7aa; background:#fff8f0;">
+          <div class="form-text">What you pay for accessories</div>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label fw-semibold">Accessories Price (R)</label>
+          <input type="number" name="accessories_price" id="accessories_price" class="form-control"
+                 value="{{ quote.accessories_price or 0 }}" step="0.01" min="0" oninput="recalc()"
+                 style="border-color:#fed7aa; background:#fff8f0;">
+          <div class="form-text">What customer pays</div>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label fw-semibold">Gross Profit</label>
+          <div class="p-2 rounded fw-bold" id="gross_profit_display"
+               style="background:#fff; border:1px solid #fed7aa; font-size:1rem;">R 0</div>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label fw-semibold">Margin %</label>
+          <div class="p-2 rounded fw-bold" id="margin_pct_display"
+               style="background:#fff; border:1px solid #fed7aa; font-size:1rem;">0.0%</div>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label fw-semibold">Total Deal Cost</label>
+          <div class="p-2 rounded fw-bold" id="total_cost_display"
+               style="background:#fff; border:1px solid #fed7aa; font-size:1rem; color:#64748b;">R 0</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Trade-In -->
+    <div class="section-card">
+      <div class="section-title">Trade-In Vehicle</div>
+      <div class="row g-3">
+        <div class="col-12">
+          <label class="form-label fw-semibold">Trade-In Description</label>
+          <input type="text" name="trade_in_description" class="form-control"
+                 value="{{ quote.trade_in_description or '' }}"
+                 placeholder="e.g. 2020 Toyota Corolla 1.8 — ABC123GP">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label fw-semibold">Trade-In Allowance (R)</label>
+          <input type="number" name="trade_in_value" id="trade_in_value" class="form-control"
+                 value="{{ quote.trade_in_value or 0 }}" step="0.01" min="0" oninput="recalc()">
+          <div class="form-text">Value given to customer for their trade-in</div>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label fw-semibold">Outstanding Finance on Trade-In (R)</label>
+          <input type="number" name="trade_in_outstanding" id="trade_in_outstanding" class="form-control"
+                 value="{{ quote.trade_in_outstanding or 0 }}" step="0.01" min="0" oninput="recalc()">
+          <div class="form-text">Balance still owed on trade-in vehicle</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Finance Terms -->
+    <div class="section-card">
+      <div class="section-title">Finance Terms</div>
+      <div class="row g-3">
+        <div class="col-md-4">
+          <label class="form-label fw-semibold">Deposit (R)</label>
+          <input type="number" name="deposit" id="deposit" class="form-control"
+                 value="{{ quote.deposit or 0 }}" step="0.01" min="0" oninput="recalc()">
+        </div>
+        <div class="col-md-4">
+          <label class="form-label fw-semibold">Amount to Finance (R)</label>
+          <input type="number" name="finance_amount" id="finance_amount" class="form-control"
+                 value="{{ quote.finance_amount or 0 }}" step="0.01" min="0" oninput="calcPayment()">
+          <div class="form-text">Auto-calculated from above, or override</div>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label fw-semibold">Interest Rate (% p.a.)</label>
+          <input type="number" name="interest_rate" id="interest_rate" class="form-control"
+                 value="{{ quote.interest_rate or 9.99 }}" step="0.01" min="0" max="100" oninput="calcPayment()">
+        </div>
+        <div class="col-md-4">
+          <label class="form-label fw-semibold">Term (months)</label>
+          <select name="term_months" id="term_months" class="form-select" onchange="calcPayment()">
+            {% for t in [12, 24, 36, 48, 60, 72, 84] %}
+            <option value="{{ t }}" {{ 'selected' if (quote.term_months or 60) == t }}>{{ t }} months</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label fw-semibold">Balloon Payment (R)</label>
+          <input type="number" name="balloon_payment" id="balloon_payment" class="form-control"
+                 value="{{ quote.balloon_payment or 0 }}" step="0.01" min="0" oninput="calcPayment()">
+          <div class="form-text">Residual / balloon amount at end of term</div>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label fw-semibold">Monthly Instalment (R)</label>
+          <input type="number" name="monthly_payment" id="monthly_payment" class="form-control fw-bold"
+                 value="{{ quote.monthly_payment or 0 }}" step="0.01" min="0"
+                 style="font-size:1.1rem; font-weight:700; color:#0f172a;">
+          <div class="form-text"><span class="calc-badge" style="background:#dbeafe;color:#1d4ed8;">Auto-calculated</span> or type to override</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Notes -->
+    <div class="section-card">
+      <div class="section-title">Notes</div>
+      <div class="row g-3">
+        <div class="col-12">
+          <label class="form-label fw-semibold">Customer Notes <small class="text-muted fw-normal">(visible to customer)</small></label>
+          <textarea name="notes" class="form-control" rows="3"
+                    placeholder="Notes to include on the customer-facing quote…">{{ quote.notes or '' }}</textarea>
+        </div>
+        <div class="col-12">
+          <label class="form-label fw-semibold">
+            Internal Notes &nbsp;<span class="internal-badge"><i class="bi bi-lock-fill me-1"></i>Internal Only</span>
+          </label>
+          <textarea name="internal_notes" class="form-control" rows="3"
+                    placeholder="Internal notes — not shown to customer…"
+                    style="border-color:#fed7aa; background:#fff8f0;">{{ quote.internal_notes or '' }}</textarea>
+        </div>
+      </div>
+    </div>
+
+    <div class="d-flex gap-2 mb-4">
+      <button type="submit" class="btn btn-primary px-4">
+        <i class="bi bi-floppy me-1"></i>Save Quote
+      </button>
+      <a href="{{ url_for('quotes') }}" class="btn btn-light">Back to Quotes</a>
+    </div>
+
+  </div><!-- /col-lg-8 -->
+
+  <!-- ── Right column: Summary ── -->
+  <div class="col-lg-4">
+    <div class="summary-panel">
+      <div style="font-size:.65rem; font-weight:700; text-transform:uppercase; letter-spacing:.1em; color:rgba(255,255,255,.4); margin-bottom:.75rem;">Deal Summary</div>
+
+      <div class="summary-row">
+        <span style="color:rgba(255,255,255,.6);">Vehicle Price</span>
+        <span id="s_selling">R 0</span>
+      </div>
+      <div class="summary-row">
+        <span style="color:rgba(255,255,255,.6);">Less Discount</span>
+        <span id="s_discount" style="color:#f87171;">— R 0</span>
+      </div>
+      <div class="summary-row">
+        <span style="color:rgba(255,255,255,.6);">Accessories</span>
+        <span id="s_accessories">R 0</span>
+      </div>
+      <div class="summary-row total" style="border-top:1px solid rgba(255,255,255,.2); margin-top:.25rem;">
+        <span>Total Price</span>
+        <span id="s_total">R 0</span>
+      </div>
+      <div class="summary-row" style="margin-top:.5rem;">
+        <span style="color:rgba(255,255,255,.6);">Less Deposit</span>
+        <span id="s_deposit" style="color:#f87171;">— R 0</span>
+      </div>
+      <div class="summary-row">
+        <span style="color:rgba(255,255,255,.6);">Less Trade-In</span>
+        <span id="s_tradein" style="color:#f87171;">— R 0</span>
+      </div>
+      <div class="summary-row">
+        <span style="color:rgba(255,255,255,.6);">+ Outstanding Finance</span>
+        <span id="s_outstanding">R 0</span>
+      </div>
+      <div class="summary-row total" style="border-top:1px solid rgba(255,255,255,.2); margin-top:.25rem;">
+        <span>Finance Amount</span>
+        <span id="s_finance" style="color:#93c5fd;">R 0</span>
+      </div>
+
+      <div class="mt-3 p-3 rounded" style="background:rgba(52,211,153,.1); border:1px solid rgba(52,211,153,.3);">
+        <div style="font-size:.65rem; font-weight:700; text-transform:uppercase; color:#34d399; margin-bottom:.25rem;">Monthly Instalment</div>
+        <div class="summary-row monthly" style="padding-top:.25rem;">
+          <span id="s_monthly">R 0</span>
+          <span style="font-size:.75rem; color:rgba(255,255,255,.5);">/month</span>
+        </div>
+        <div style="font-size:.72rem; color:rgba(255,255,255,.4); margin-top:.25rem;" id="s_term_info"></div>
+      </div>
+
+      <div class="mt-3" style="border-top:1px solid rgba(255,255,255,.1); padding-top:.75rem;">
+        <div style="font-size:.65rem; font-weight:700; text-transform:uppercase; color:rgba(255,255,255,.4); margin-bottom:.5rem;">Internal Margin</div>
+        <div class="summary-row">
+          <span style="color:rgba(255,255,255,.6);">Gross Profit</span>
+          <span id="s_profit" style="color:#fbbf24;">R 0</span>
+        </div>
+        <div class="summary-row">
+          <span style="color:rgba(255,255,255,.6);">Margin %</span>
+          <span id="s_margin" style="color:#fbbf24;">0.0%</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function fmt(n) {
+  return 'R ' + Math.round(n).toLocaleString('en-ZA');
+}
+
+function recalc() {
+  const selling   = parseFloat(document.getElementById('selling_price').value) || 0;
+  const discount  = parseFloat(document.getElementById('discount').value) || 0;
+  const cost      = parseFloat(document.getElementById('cost_price').value) || 0;
+  const accCost   = parseFloat(document.getElementById('accessories_cost').value) || 0;
+  const accPrice  = parseFloat(document.getElementById('accessories_price').value) || 0;
+  const tradeIn   = parseFloat(document.getElementById('trade_in_value').value) || 0;
+  const tradeOut  = parseFloat(document.getElementById('trade_in_outstanding').value) || 0;
+  const deposit   = parseFloat(document.getElementById('deposit').value) || 0;
+
+  const netVehicle  = selling - discount;
+  const totalPrice  = netVehicle + accPrice;
+  const financeAmt  = totalPrice - deposit - tradeIn + tradeOut;
+  const totalCost   = cost + accCost;
+  const grossProfit = (selling - cost) + (accPrice - accCost);
+  const marginPct   = totalPrice > 0 ? (grossProfit / totalPrice * 100) : 0;
+
+  document.getElementById('net_price_display').textContent  = fmt(netVehicle);
+  document.getElementById('gross_profit_display').textContent = fmt(grossProfit);
+  document.getElementById('gross_profit_display').style.color = grossProfit >= 0 ? '#16a34a' : '#dc2626';
+  document.getElementById('margin_pct_display').textContent   = marginPct.toFixed(1) + '%';
+  document.getElementById('margin_pct_display').style.color   = marginPct >= 10 ? '#16a34a' : marginPct >= 5 ? '#d97706' : '#dc2626';
+  document.getElementById('total_cost_display').textContent   = fmt(totalCost);
+
+  // Update finance amount field (auto) unless user has manually overridden
+  document.getElementById('finance_amount').value = Math.max(0, financeAmt).toFixed(2);
+
+  // Summary panel
+  document.getElementById('s_selling').textContent    = fmt(selling);
+  document.getElementById('s_discount').textContent   = '— ' + fmt(discount);
+  document.getElementById('s_accessories').textContent = fmt(accPrice);
+  document.getElementById('s_total').textContent      = fmt(totalPrice);
+  document.getElementById('s_deposit').textContent    = '— ' + fmt(deposit);
+  document.getElementById('s_tradein').textContent    = '— ' + fmt(tradeIn);
+  document.getElementById('s_outstanding').textContent = fmt(tradeOut);
+  document.getElementById('s_finance').textContent    = fmt(Math.max(0, financeAmt));
+  document.getElementById('s_profit').textContent     = fmt(grossProfit);
+  document.getElementById('s_margin').textContent     = marginPct.toFixed(1) + '%';
+
+  calcPayment();
+}
+
+function calcPayment() {
+  const P       = parseFloat(document.getElementById('finance_amount').value) || 0;
+  const annRate = parseFloat(document.getElementById('interest_rate').value) || 0;
+  const n       = parseInt(document.getElementById('term_months').value) || 60;
+  const balloon = parseFloat(document.getElementById('balloon_payment').value) || 0;
+
+  let pmt = 0;
+  if (P > 0 && annRate > 0 && n > 0) {
+    const r = annRate / 100 / 12;
+    const factor = Math.pow(1 + r, n);
+    if (balloon > 0) {
+      pmt = (P - balloon / factor) * r * factor / (factor - 1);
+    } else {
+      pmt = P * r * factor / (factor - 1);
+    }
+  }
+
+  document.getElementById('monthly_payment').value = pmt.toFixed(2);
+  document.getElementById('s_monthly').textContent = fmt(pmt);
+  document.getElementById('s_term_info').textContent =
+    n + ' months @ ' + (annRate || 0).toFixed(2) + '% p.a.' +
+    (balloon > 0 ? ' | Balloon: ' + fmt(balloon) : '');
+}
+
+function loadVehicleData(vid) {
+  if (!vid) return;
+  fetch('/api/vehicle/' + vid)
+    .then(r => r.json())
+    .then(v => {
+      if (v.error) return;
+      if (v.rrp)        document.getElementById('selling_price').value = v.rrp;
+      if (v.cost_price) document.getElementById('cost_price').value    = v.cost_price;
+      recalc();
+    });
+}
+
+// Run on page load to populate summaries from saved values
+recalc();
+</script>
+{% endblock %}

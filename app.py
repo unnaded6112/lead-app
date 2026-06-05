@@ -207,6 +207,16 @@ def init_db():
             (name, subject, body, step, delay)
         )
 
+    # Migrate: add deal pipeline columns to leads if they don't exist yet
+    for col_sql in [
+        "ALTER TABLE leads ADD COLUMN deal_stage TEXT",
+        "ALTER TABLE leads ADD COLUMN stage_updated_at TEXT",
+    ]:
+        try:
+            cursor.execute(col_sql)
+        except Exception:
+            pass
+
     conn.commit()
     conn.close()
 
@@ -975,6 +985,11 @@ def update_quote_status(qid):
                 "WHERE id=? AND status NOT IN ('closed_won','closed_lost')",
                 (now, quote['lead_id'])
             )
+            conn.execute(
+                "UPDATE leads SET deal_stage='quote_sent', stage_updated_at=? "
+                "WHERE id=? AND deal_stage IS NULL",
+                (now, quote['lead_id'])
+            )
         elif new_status == 'accepted':
             conn.execute(
                 "UPDATE leads SET status='closed_won', pipeline_stage='customer', updated_at=? WHERE id=?",
@@ -1220,6 +1235,108 @@ def delete_finance_application(faid):
     conn.close()
     flash('Application removed.', 'success')
     return redirect(request.referrer or url_for('finance'))
+
+
+# ── Deal Pipeline ─────────────────────────────────────────────────────────────
+
+PIPELINE_STAGES = ['quote_sent', 'test_drive', 'finance_applied', 'approved', 'delivered']
+STAGE_LABELS = {
+    'quote_sent':       'Quote Sent',
+    'test_drive':       'Test Drive Done',
+    'finance_applied':  'Finance Applied',
+    'approved':         'Approved',
+    'delivered':        'Delivered',
+}
+
+
+@app.route('/pipeline')
+def pipeline():
+    conn = get_db()
+    deals = conn.execute('''
+        SELECT l.id, l.name, l.phone, l.email, l.deal_stage, l.stage_updated_at,
+               CAST((julianday("now") - julianday(COALESCE(l.stage_updated_at, l.created_at))) AS INTEGER) as days_in_stage,
+               q.id as quote_id, q.quote_number, q.selling_price,
+               v.year as v_year, v.make as v_make, v.model as v_model, v.trim as v_trim
+        FROM leads l
+        LEFT JOIN quotes q ON q.lead_id = l.id
+            AND q.id = (SELECT id FROM quotes WHERE lead_id = l.id ORDER BY created_at DESC LIMIT 1)
+        LEFT JOIN vehicles v ON q.vehicle_id = v.id
+        WHERE l.deal_stage IS NOT NULL
+        ORDER BY COALESCE(l.stage_updated_at, l.created_at) DESC
+    ''').fetchall()
+
+    available_leads = conn.execute('''
+        SELECT l.id, l.name FROM leads l
+        WHERE l.deal_stage IS NULL
+          AND EXISTS (SELECT 1 FROM quotes WHERE lead_id = l.id)
+        ORDER BY l.name
+    ''').fetchall()
+    conn.close()
+
+    board  = {s: [] for s in PIPELINE_STAGES}
+    totals = {s: {'count': 0, 'value': 0} for s in PIPELINE_STAGES}
+    for d in deals:
+        s = d['deal_stage']
+        if s in board:
+            board[s].append(dict(d))
+            totals[s]['count'] += 1
+            totals[s]['value'] += d['selling_price'] or 0
+
+    total_deals = sum(totals[s]['count'] for s in PIPELINE_STAGES)
+    total_value = sum(totals[s]['value'] for s in PIPELINE_STAGES)
+
+    return render_template('pipeline.html', board=board, stages=PIPELINE_STAGES,
+                           stage_labels=STAGE_LABELS, totals=totals,
+                           total_deals=total_deals, total_value=total_value,
+                           available_leads=available_leads)
+
+
+@app.route('/pipeline/move', methods=['POST'])
+def move_deal():
+    lead_id = request.form.get('lead_id')
+    new_stage = request.form.get('stage')
+    if new_stage not in PIPELINE_STAGES:
+        flash('Invalid stage.', 'error')
+        return redirect(url_for('pipeline'))
+    conn = get_db()
+    conn.execute(
+        'UPDATE leads SET deal_stage=?, stage_updated_at=? WHERE id=?',
+        (new_stage, datetime.now().isoformat(), lead_id)
+    )
+    conn.commit()
+    conn.close()
+    return redirect(url_for('pipeline'))
+
+
+@app.route('/pipeline/add', methods=['POST'])
+def add_to_pipeline():
+    lead_id  = request.form.get('lead_id')
+    stage    = request.form.get('stage', 'quote_sent')
+    if stage not in PIPELINE_STAGES:
+        stage = 'quote_sent'
+    conn = get_db()
+    conn.execute(
+        'UPDATE leads SET deal_stage=?, stage_updated_at=? WHERE id=?',
+        (stage, datetime.now().isoformat(), lead_id)
+    )
+    conn.commit()
+    conn.close()
+    flash('Deal added to pipeline!', 'success')
+    return redirect(url_for('pipeline'))
+
+
+@app.route('/pipeline/remove', methods=['POST'])
+def remove_from_pipeline():
+    lead_id = request.form.get('lead_id')
+    conn = get_db()
+    conn.execute(
+        'UPDATE leads SET deal_stage=NULL, stage_updated_at=NULL WHERE id=?',
+        (lead_id,)
+    )
+    conn.commit()
+    conn.close()
+    flash('Deal removed from pipeline.', 'success')
+    return redirect(url_for('pipeline'))
 
 
 if __name__ == '__main__':

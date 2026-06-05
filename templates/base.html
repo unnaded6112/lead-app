@@ -103,6 +103,9 @@
       <i class="bi bi-people"></i> Leads
     </a>
     <div class="sb-section">Dealership</div>
+    <a href="{{ url_for('pipeline') }}" class="sb-link {{ 'active' if request.endpoint=='pipeline' }}">
+      <i class="bi bi-kanban"></i> Deal Pipeline
+    </a>
     <a href="{{ url_for('inventory') }}" class="sb-link {{ 'active' if request.endpoint=='inventory' }}">
       <i class="bi bi-car-front"></i> Inventory
     </a>
